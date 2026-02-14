@@ -1,0 +1,767 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ===== ENUMS =====
+
+enum UserRole {
+  CLIENT      // Apenas ficha, sem login
+  FLEET       // Gere veículos
+  STAFF       // Contratos, devoluções, reservas + permissões FLEET
+  ADMIN       // Gerente de estação, move staff, dá permissões
+  IT          // Super admin, pode tudo
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  PENDING
+}
+
+enum VehicleStatus {
+  AVAILABLE
+  RESERVED
+  RENTED
+  MAINTENANCE
+  OUT_OF_SERVICE
+  RETIRED
+}
+
+enum ReservationStatus {
+  PENDING
+  CONFIRMED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum ContractStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  OVERDUE
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  PARTIAL
+  REFUNDED
+  FAILED
+}
+
+enum PaymentMethod {
+  CASH
+  CREDIT_CARD
+  DEBIT_CARD
+  BANK_TRANSFER
+  MB_WAY
+  MULTIBANCO
+}
+
+enum MaintenanceType {
+  PREVENTIVE
+  CORRECTIVE
+  INSPECTION
+  CLEANING
+  ACCIDENT_REPAIR
+}
+
+enum MaintenanceStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum VehicleTransferStatus {
+  PENDING
+  IN_TRANSIT
+  COMPLETED
+  CANCELLED
+}
+
+enum NotificationType {
+  RESERVATION_CONFIRMED
+  RESERVATION_CANCELLED
+  CONTRACT_CREATED
+  CONTRACT_COMPLETED
+  CONTRACT_CANCELLED
+  PAYMENT_RECEIVED
+  MAINTENANCE_DUE
+  VEHICLE_UPGRADE
+  VEHICLE_TRANSFER
+  SYSTEM_ALERT
+}
+
+enum NotificationStatus {
+  UNREAD
+  READ
+  ARCHIVED
+}
+
+// ===== USERS & AUTH =====
+
+model User {
+  id                Int               @id @default(autoincrement())
+  email             String?           @unique
+  password          String?
+  role              UserRole          @default(CLIENT)
+  status            UserStatus        @default(ACTIVE)
+  
+  // Informação pessoal
+  firstName         String
+  lastName          String
+  fullName          String            // firstName + lastName
+  phone             String
+  alternativePhone  String?
+  cpf               String?           @unique
+  nif               String?           @unique
+  dateOfBirth       DateTime?
+  
+  // Endereço
+  address           String?
+  city              String?
+  postalCode        String?
+  country           String            @default("Portugal")
+  
+  // Documentos (para clientes)
+  licenseNumber     String?           @unique
+  licenseExpiry     DateTime?
+  licenseIssueDate  DateTime?
+  licenseCountry    String?
+  idCardNumber      String?           @unique
+  idCardExpiry      DateTime?
+  
+  // Profissional (para staff)
+  employeeNumber    String?           @unique
+  hireDate          DateTime?
+  departmentId      String?
+  stationId         String?
+  
+  // Configurações
+  profileImage      String?
+  emailVerified     Boolean           @default(false)
+  phoneVerified     Boolean           @default(false)
+  acceptedTerms     Boolean           @default(false)
+  acceptedMarketing Boolean           @default(false)
+  
+  // Cliente rating e blacklist
+  isBlacklisted     Boolean           @default(false)
+  blacklistReason   String?
+  blacklistedAt     DateTime?
+  blacklistedBy     Int?
+  clientRating      Float?            // 0-5 estrelas
+  totalRentals      Int               @default(0)
+  
+  // Timestamps
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  lastLoginAt       DateTime?
+  createdBy         Int?
+  
+  // Relações
+  station           Station?          @relation(fields: [stationId], references: [id])
+  department        Department?       @relation(fields: [departmentId], references: [id])
+  permissions       UserPermission[]
+  reservations      Reservation[]
+  contracts         Contract[]
+  payments          Payment[]
+  activityLogs      ActivityLog[]
+  createdReservations Reservation[]  @relation("CreatedBy")
+  createdContracts  Contract[]       @relation("CreatedBy")
+  cancelledContracts Contract[]      @relation("CancelledBy")
+  additionalDriverContracts AdditionalDriver[]
+  notifications     Notification[]
+  vehicleTransfersAsDriver VehicleTransfer[] @relation("TransferDriver")
+  vehicleTransfersCreated  VehicleTransfer[] @relation("TransferCreatedBy")
+  
+  @@index([email])
+  @@index([cpf])
+  @@index([nif])
+  @@index([stationId])
+  @@index([role, status])
+}
+
+model UserPermission {
+  id          String   @id @default(uuid())
+  userId      Int
+  permission  String   // e.g., "vehicle.upgrade", "station.manage", "staff.move"
+  grantedBy   Int
+  grantedAt   DateTime @default(now())
+  expiresAt   DateTime?
+  isActive    Boolean  @default(true)
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([permission])
+}
+
+// ===== ORGANIZATIONAL =====
+
+model Station {
+  id              String      @id @default(uuid())
+  code            String      @unique
+  name            String
+  email           String
+  phone           String
+  
+  // Endereço
+  address         String
+  city            String
+  postalCode      String
+  country         String      @default("Portugal")
+  latitude        Float?
+  longitude       Float?
+  
+  // Configurações
+  isActive        Boolean     @default(true)
+  isPickupPoint   Boolean     @default(true)
+  isReturnPoint   Boolean     @default(true)
+  isFictitious    Boolean     @default(false) // Para estações especiais (roubados, manutenção)
+  purpose         String?     // "STOLEN", "MAINTENANCE", "RETIRED", etc.
+  openingHours    String?     // JSON string
+  
+  // Timestamps
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  // Relações
+  users           User[]
+  vehicles        Vehicle[]
+  reservationsPickup   Reservation[] @relation("PickupStation")
+  reservationsReturn   Reservation[] @relation("ReturnStation")
+  contractsPickup      Contract[]    @relation("PickupStation")
+  contractsReturn      Contract[]    @relation("ReturnStation")
+  transfersFrom        VehicleTransfer[] @relation("TransferFrom")
+  transfersTo          VehicleTransfer[] @relation("TransferTo")
+  
+  @@index([code])
+  @@index([isActive])
+}
+
+model Department {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  users       User[]
+}
+
+// ===== VEHICLES =====
+
+model VehicleGroup {
+  id              String    @id @default(uuid())
+  code            String    @unique
+  name            String
+  description     String?
+  category        String    // Económico, Compacto, SUV, etc.
+  
+  // Especificações
+  seats           Int
+  doors           Int
+  transmission    String    // Manual, Automático
+  fuelType        String    // Gasolina, Diesel, Elétrico, Híbrido
+  airConditioning Boolean   @default(true)
+  
+  // Preços base
+  dailyRate       Float
+  weeklyRate      Float?
+  monthlyRate     Float?
+  depositAmount   Float
+  
+  // Kilometragem
+  kmIncluded      Int       @default(0) // 0 = ilimitado
+  extraKmCost     Float     @default(0)
+  
+  // Configurações
+  minRentalDays   Int       @default(1)
+  maxRentalDays   Int       @default(365)
+  minDriverAge    Int       @default(21)
+  minLicenseYears Int       @default(1)
+  
+  // Imagens e docs
+  image           String?
+  features        String?   // JSON array
+  
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  vehicles        Vehicle[]
+  
+  @@index([code])
+  @@index([category])
+}
+
+model Vehicle {
+  id              Int             @id @default(autoincrement())
+  groupId         String
+  stationId       String
+  
+  // Identificação
+  licensePlate    String          @unique
+  vin             String          @unique
+  make            String
+  model           String
+  year            Int
+  color           String
+  
+  // Status
+  status          VehicleStatus   @default(AVAILABLE)
+  currentKm       Int             @default(0)
+  lastServiceKm   Int             @default(0)
+  nextServiceKm   Int?
+  
+  // Documentos
+  registrationDate DateTime?
+  registrationExpiry DateTime?
+  insuranceNumber String?
+  insuranceExpiry DateTime?
+  inspectionExpiry DateTime?
+  
+  // Configurações
+  notes           String?
+  images          String?         // JSON array
+  isActive        Boolean         @default(true)
+  
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  
+  // Relações
+  group           VehicleGroup    @relation(fields: [groupId], references: [id])
+  station         Station         @relation(fields: [stationId], references: [id])
+  reservations    Reservation[]
+  contracts       Contract[]
+  maintenances    Maintenance[]
+  transfers       VehicleTransfer[]
+  
+  @@index([licensePlate])
+  @@index([groupId])
+  @@index([stationId])
+  @@index([status])
+}
+
+// ===== RESERVATIONS & CONTRACTS =====
+
+model Reservation {
+  id                Int                 @id @default(autoincrement())
+  reservationNumber String              @unique
+  
+  // Cliente e veículo
+  clientId          Int
+  vehicleId         Int?
+  vehicleGroupId    String?
+  
+  // Localizações
+  pickupStationId   String
+  returnStationId   String
+  
+  // Datas
+  pickupDate        DateTime
+  returnDate        DateTime
+  
+  // Status
+  status            ReservationStatus   @default(PENDING)
+  
+  // Preços
+  dailyRate         Float
+  totalDays         Int
+  estimatedTotal    Float
+  depositPaid       Float               @default(0)
+  
+  // Extras
+  includeInsurance  Boolean             @default(false)
+  insuranceCost     Float               @default(0)
+  additionalDrivers Int                 @default(0)
+  additionalDriverCost Float            @default(0)
+  extras            String?             // JSON - Extras selecionados
+  
+  // Observações
+  clientNotes       String?             // Observações visíveis para o cliente
+  stationNotes      String?             // Observações internas da estação
+  
+  // Criação
+  createdById       Int
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  confirmedAt       DateTime?
+  cancelledAt       DateTime?
+  cancelReason      String?
+  
+  // Relações
+  client            User                @relation(fields: [clientId], references: [id])
+  vehicle           Vehicle?            @relation(fields: [vehicleId], references: [id])
+  pickupStation     Station             @relation("PickupStation", fields: [pickupStationId], references: [id])
+  returnStation     Station             @relation("ReturnStation", fields: [returnStationId], references: [id])
+  createdBy         User                @relation("CreatedBy", fields: [createdById], references: [id])
+  contract          Contract?
+  
+  @@index([reservationNumber])
+  @@index([clientId])
+  @@index([vehicleId])
+  @@index([status])
+  @@index([pickupDate])
+}
+
+model Contract {
+  id                Int             @id @default(autoincrement())
+  contractNumber    String          @unique
+  reservationId     Int?            @unique
+  
+  // Cliente e veículo
+  clientId          Int
+  vehicleId         Int
+  
+  // Upgrade tracking
+  originalVehicleGroupId String?      // Se houve upgrade, grupo original
+  upgradeApprovedBy Int?              // Admin que aprovou upgrade
+  upgradeReason     String?           // Razão do upgrade
+  upgradeApprovedAt DateTime?
+  upgradeCost       Float             @default(0)
+  
+  // Localizações
+  pickupStationId   String
+  returnStationId   String
+  
+  // Datas planejadas
+  pickupDate        DateTime
+  plannedReturnDate DateTime
+  
+  // Datas reais
+  actualPickupDate  DateTime?
+  actualReturnDate  DateTime?
+  
+  // Status
+  status            ContractStatus  @default(DRAFT)
+  
+  // Kilometragem
+  kmOut             Int
+  kmIn              Int?
+  kmIncluded        Int             @default(0)
+  extraKm           Int             @default(0)
+  extraKmCost       Float           @default(0)
+  
+  // Combustível
+  fuelLevelOut      String          // 1/4, 1/2, 3/4, Full
+  fuelLevelIn       String?
+  fuelCharge        Float           @default(0)
+  
+  // Preços
+  dailyRate         Float
+  totalDays         Int
+  subtotal          Float
+  insuranceCost     Float           @default(0)
+  extrasCost        Float           @default(0)
+  lateFee           Float           @default(0)
+  damageCost        Float           @default(0)
+  discountAmount    Float           @default(0)
+  totalAmount       Float
+  paidAmount        Float           @default(0)
+  balanceDue        Float           @default(0)
+  
+  // Depósito
+  depositAmount     Float
+  depositReturned   Boolean         @default(false)
+  depositReturnedAt DateTime?
+  
+  // Extras
+  extras            String?         // JSON - Copiado da reserva se existir
+  
+  // Danos e observações
+  damagesOut        String?         // JSON array
+  damagesIn         String?         // JSON array
+  damageOnReturn    String?         // Descrição de danos na devolução
+  clientNotes       String?         // Observações visíveis para o cliente
+  stationNotes      String?         // Observações internas da estação
+  
+  // Assinaturas
+  clientSignature   String?
+  staffSignature    String?
+  
+  // Criação e cancelamento
+  createdById       Int
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  completedAt       DateTime?
+  cancelledAt       DateTime?
+  cancelledBy       Int?
+  cancellationReason String?
+  
+  // Relações
+  reservation       Reservation?    @relation(fields: [reservationId], references: [id])
+  client            User            @relation(fields: [clientId], references: [id])
+  vehicle           Vehicle         @relation(fields: [vehicleId], references: [id])
+  pickupStation     Station         @relation("PickupStation", fields: [pickupStationId], references: [id])
+  returnStation     Station         @relation("ReturnStation", fields: [returnStationId], references: [id])
+  createdBy         User            @relation("CreatedBy", fields: [createdById], references: [id])
+  cancelledByUser   User?           @relation("CancelledBy", fields: [cancelledBy], references: [id])
+  payments          Payment[]
+  additionalDrivers AdditionalDriver[]
+  
+  @@index([contractNumber])
+  @@index([clientId])
+  @@index([vehicleId])
+  @@index([status])
+  @@index([pickupDate])
+}
+
+// ===== PAYMENTS =====
+
+model Payment {
+  id              String        @id @default(uuid())
+  contractId      Int
+  clientId        Int
+  
+  amount          Float
+  paymentMethod   PaymentMethod
+  status          PaymentStatus @default(PENDING)
+  
+  // Detalhes
+  paymentType     String        // Depósito, Pagamento Final, Extras, etc.
+  transactionId   String?       @unique
+  reference       String?
+  
+  notes           String?
+  
+  processedBy     String?
+  processedAt     DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  // Relações
+  contract        Contract      @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  client          User          @relation(fields: [clientId], references: [id])
+  
+  @@index([contractId])
+  @@index([clientId])
+  @@index([status])
+}
+
+// ===== MAINTENANCE =====
+
+model Maintenance {
+  id              String              @id @default(uuid())
+  vehicleId       Int
+  
+  type            MaintenanceType
+  status          MaintenanceStatus   @default(SCHEDULED)
+  
+  // Datas
+  scheduledDate   DateTime
+  startedAt       DateTime?
+  completedAt     DateTime?
+  
+  // Detalhes
+  description     String
+  notes           String?
+  cost            Float               @default(0)
+  
+  // Kilometragem
+  currentKm       Int
+  nextServiceKm   Int?
+  
+  // Fornecedor
+  provider        String?
+  invoiceNumber   String?
+  
+  performedBy     String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  
+  vehicle         Vehicle             @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  
+  @@index([vehicleId])
+  @@index([status])
+  @@index([scheduledDate])
+}
+
+// ===== VEHICLE TRANSFERS (IMPROS) =====
+
+model VehicleTransfer {
+  id                String                 @id @default(uuid())
+  transferNumber    String                 @unique
+  vehicleId         Int
+  
+  // Estações
+  fromStationId     String
+  toStationId       String
+  
+  // Condutor responsável
+  driverId          Int
+  
+  // Datas
+  scheduledDate     DateTime
+  departureDate     DateTime?
+  arrivalDate       DateTime?
+  
+  // Status
+  status            VehicleTransferStatus  @default(PENDING)
+  
+  // Kilometragem
+  kmAtDeparture     Int?
+  kmAtArrival       Int?
+  
+  // Observações
+  reason            String                 // Motivo da transferência
+  clientNotes       String?                // Observações visíveis (se for para cliente)
+  stationNotes      String?                // Observações internas da estação
+  
+  // Custos (se aplicável)
+  cost              Float                  @default(0)
+  
+  // Criação e timestamps
+  createdById       Int
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  completedAt       DateTime?
+  cancelledAt       DateTime?
+  cancellationReason String?
+  
+  // Relações
+  vehicle           Vehicle                @relation(fields: [vehicleId], references: [id])
+  fromStation       Station                @relation("TransferFrom", fields: [fromStationId], references: [id])
+  toStation         Station                @relation("TransferTo", fields: [toStationId], references: [id])
+  driver            User                   @relation("TransferDriver", fields: [driverId], references: [id])
+  createdBy         User                   @relation("TransferCreatedBy", fields: [createdById], references: [id])
+  
+  @@index([transferNumber])
+  @@index([vehicleId])
+  @@index([status])
+  @@index([scheduledDate])
+}
+
+// ===== ADDITIONAL DRIVERS =====
+
+model AdditionalDriver {
+  id              String    @id @default(uuid())
+  contractId      Int
+  driverId        Int?      // Se for cliente existente
+  
+  // Dados pessoais
+  fullName        String
+  email           String?
+  phone           String
+  cpf             String?
+  nif             String?
+  dateOfBirth     DateTime
+  
+  // Carta de condução
+  licenseNumber   String
+  licenseExpiry   DateTime
+  licenseIssueDate DateTime?
+  licenseCountry  String    @default("Portugal")
+  
+  // Documentos
+  idCardNumber    String
+  idCardExpiry    DateTime?
+  
+  address         String?
+  city            String?
+  postalCode      String?
+  country         String    @default("Portugal")
+  
+  // Custo
+  dailyCost       Float     @default(0)
+  totalCost       Float     @default(0)
+  
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  contract        Contract  @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  driver          User?     @relation(fields: [driverId], references: [id])
+  
+  @@index([contractId])
+  @@index([driverId])
+  @@index([licenseNumber])
+}
+
+// ===== DAMAGE TYPES =====
+
+model DamageType {
+  id              String    @id @default(uuid())
+  code            String    @unique
+  name            String
+  description     String?
+  category        String    // EXTERIOR, INTERIOR, MECHANICAL, GLASS
+  severity        String    // MINOR, MODERATE, MAJOR, SEVERE
+  
+  // Custos padrão
+  estimatedCost   Float
+  minCost         Float?
+  maxCost         Float?
+  
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@index([code])
+  @@index([category])
+  @@index([severity])
+}
+
+// ===== NOTIFICATIONS =====
+
+model Notification {
+  id              String              @id @default(uuid())
+  userId          Int
+  type            NotificationType
+  status          NotificationStatus  @default(UNREAD)
+  
+  title           String
+  message         String
+  
+  // Relacionado a
+  entityType      String?             // Contract, Reservation, Vehicle, etc.
+  entityId        String?
+  
+  // Ações
+  actionUrl       String?
+  actionLabel     String?
+  
+  readAt          DateTime?
+  createdAt       DateTime            @default(now())
+  
+  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ===== ACTIVITY LOG =====
+
+model ActivityLog {
+  id          String   @id @default(uuid())
+  userId      Int
+  action      String   // e.g., "user.created", "contract.completed"
+  entityType  String   // User, Contract, Vehicle, etc.
+  entityId    String
+  details     String?  // JSON
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}

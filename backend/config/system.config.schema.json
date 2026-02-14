@@ -1,0 +1,153 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "FleetGate System Configuration",
+  "description": "Configuration file for FleetGate initial setup and management",
+  "type": "object",
+  "required": ["version", "departments", "stations", "vehicleGroups", "systemSettings"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Configuration file version"
+    },
+    "lastUpdated": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Last update timestamp"
+    },
+    "updatedBy": {
+      "type": "string",
+      "description": "User who last updated this configuration"
+    },
+    "departments": {
+      "type": "array",
+      "description": "Company departments",
+      "items": {
+        "type": "object",
+        "required": ["name", "isActive"],
+        "properties": {
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "isActive": { "type": "boolean" }
+        }
+      }
+    },
+    "stations": {
+      "type": "array",
+      "description": "Rental stations",
+      "items": {
+        "type": "object",
+        "required": ["code", "name", "email", "phone", "address", "city", "postalCode", "country"],
+        "properties": {
+          "code": { "type": "string", "pattern": "^[A-Z0-9]+$" },
+          "name": { "type": "string" },
+          "email": { "type": "string", "format": "email" },
+          "phone": { "type": "string" },
+          "address": { "type": "string" },
+          "city": { "type": "string" },
+          "postalCode": { "type": "string" },
+          "country": { "type": "string" },
+          "latitude": { "type": "number" },
+          "longitude": { "type": "number" },
+          "isActive": { "type": "boolean" },
+          "isPickupPoint": { "type": "boolean" },
+          "isReturnPoint": { "type": "boolean" },
+          "isFictitious": { "type": "boolean" },
+          "purpose": { "type": "string" },
+          "openingHours": { "type": "object" }
+        }
+      }
+    },
+    "vehicleGroups": {
+      "type": "array",
+      "description": "Vehicle groups/categories",
+      "items": {
+        "type": "object",
+        "required": ["code", "name", "category", "seats", "doors", "transmission", "fuelType", "dailyRate", "depositAmount"],
+        "properties": {
+          "code": { "type": "string", "pattern": "^[A-Z0-9]+$" },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "category": { "type": "string" },
+          "seats": { "type": "integer", "minimum": 2 },
+          "doors": { "type": "integer", "minimum": 2 },
+          "transmission": { "type": "string", "enum": ["Manual", "Automático"] },
+          "fuelType": { "type": "string" },
+          "airConditioning": { "type": "boolean" },
+          "dailyRate": { "type": "number", "minimum": 0 },
+          "weeklyRate": { "type": "number", "minimum": 0 },
+          "monthlyRate": { "type": "number", "minimum": 0 },
+          "depositAmount": { "type": "number", "minimum": 0 },
+          "kmIncluded": { "type": "integer", "minimum": 0 },
+          "extraKmCost": { "type": "number", "minimum": 0 },
+          "minRentalDays": { "type": "integer", "minimum": 1 },
+          "maxRentalDays": { "type": "integer", "minimum": 1 },
+          "minDriverAge": { "type": "integer", "minimum": 18 },
+          "minLicenseYears": { "type": "integer", "minimum": 0 },
+          "features": { "type": "array", "items": { "type": "string" } },
+          "isActive": { "type": "boolean" }
+        }
+      }
+    },
+    "damageTypes": {
+      "type": "array",
+      "description": "Predefined damage types catalog",
+      "items": {
+        "type": "object",
+        "required": ["name", "category", "severity", "estimatedCost"],
+        "properties": {
+          "name": { "type": "string" },
+          "category": { "type": "string", "enum": ["EXTERIOR", "INTERIOR", "MECHANICAL", "GLASS"] },
+          "severity": { "type": "string", "enum": ["MINOR", "MODERATE", "MAJOR", "SEVERE"] },
+          "description": { "type": "string" },
+          "estimatedCost": { "type": "number", "minimum": 0 },
+          "minCost": { "type": "number", "minimum": 0 },
+          "maxCost": { "type": "number", "minimum": 0 }
+        }
+      }
+    },
+    "systemUsers": {
+      "type": "array",
+      "description": "Initial system users (staff)",
+      "items": {
+        "type": "object",
+        "required": ["email", "role", "firstName", "lastName", "phone"],
+        "properties": {
+          "email": { "type": "string", "format": "email" },
+          "role": { "type": "string", "enum": ["IT", "ADMIN", "STAFF", "FLEET"] },
+          "firstName": { "type": "string" },
+          "lastName": { "type": "string" },
+          "phone": { "type": "string" },
+          "department": { "type": "string" },
+          "station": { "type": ["string", "null"] },
+          "permissions": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "systemSettings": {
+      "type": "object",
+      "description": "Global system settings",
+      "required": ["currency", "locale", "timezone"],
+      "properties": {
+        "defaultPassword": { "type": "string" },
+        "requirePasswordChange": { "type": "boolean" },
+        "defaultContractDays": { "type": "integer", "minimum": 1 },
+        "defaultDepositPercentage": { "type": "number", "minimum": 0, "maximum": 100 },
+        "maxAdvanceBookingDays": { "type": "integer", "minimum": 1 },
+        "minAdvanceBookingHours": { "type": "integer", "minimum": 0 },
+        "lateFeePerDay": { "type": "number", "minimum": 0 },
+        "fuelChargeEmpty": { "type": "number", "minimum": 0 },
+        "fuelChargeThreeQuarters": { "type": "number", "minimum": 0 },
+        "fuelChargeHalf": { "type": "number", "minimum": 0 },
+        "fuelChargeQuarter": { "type": "number", "minimum": 0 },
+        "additionalDriverCostPerDay": { "type": "number", "minimum": 0 },
+        "insuranceDailyCost": { "type": "number", "minimum": 0 },
+        "gpsRentalPerDay": { "type": "number", "minimum": 0 },
+        "childSeatPerDay": { "type": "number", "minimum": 0 },
+        "cleaningFee": { "type": "number", "minimum": 0 },
+        "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+        "locale": { "type": "string" },
+        "timezone": { "type": "string" }
+      }
+    }
+  }
+}

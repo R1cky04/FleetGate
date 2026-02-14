@@ -1,0 +1,434 @@
+{
+  "$schema": "./system.config.schema.json",
+  "version": "1.0.0",
+  "lastUpdated": "2026-02-14T00:00:00Z",
+  "updatedBy": "system",
+  
+  "departments": [
+    {
+      "name": "IT",
+      "description": "Tecnologia e Sistemas",
+      "isActive": true
+    },
+    {
+      "name": "Operações",
+      "description": "Gestão de frotas e operações",
+      "isActive": true
+    },
+    {
+      "name": "Atendimento",
+      "description": "Atendimento ao cliente",
+      "isActive": true
+    }
+  ],
+  
+  "stations": [
+    {
+      "code": "LISAL",
+      "name": "Lisboa Airport",
+      "email": "lisboa@fleetgate.pt",
+      "phone": "+351210000001",
+      "address": "Aeroporto de Lisboa",
+      "city": "Lisboa",
+      "postalCode": "1700-111",
+      "country": "Portugal",
+      "latitude": 38.7742,
+      "longitude": -9.1342,
+      "isActive": true,
+      "isPickupPoint": true,
+      "isReturnPoint": true,
+      "isFictitious": false,
+      "openingHours": {
+        "monday": { "open": "06:00", "close": "23:00" },
+        "tuesday": { "open": "06:00", "close": "23:00" },
+        "wednesday": { "open": "06:00", "close": "23:00" },
+        "thursday": { "open": "06:00", "close": "23:00" },
+        "friday": { "open": "06:00", "close": "23:00" },
+        "saturday": { "open": "07:00", "close": "22:00" },
+        "sunday": { "open": "07:00", "close": "22:00" }
+      }
+    },
+    {
+      "code": "PORTOAL",
+      "name": "Porto Airport",
+      "email": "porto@fleetgate.pt",
+      "phone": "+351220000002",
+      "address": "Aeroporto Francisco Sá Carneiro",
+      "city": "Porto",
+      "postalCode": "4470-558",
+      "country": "Portugal",
+      "latitude": 41.2481,
+      "longitude": -8.6814,
+      "isActive": true,
+      "isPickupPoint": true,
+      "isReturnPoint": true,
+      "isFictitious": false,
+      "openingHours": {
+        "monday": { "open": "06:00", "close": "23:00" },
+        "tuesday": { "open": "06:00", "close": "23:00" },
+        "wednesday": { "open": "06:00", "close": "23:00" },
+        "thursday": { "open": "06:00", "close": "23:00" },
+        "friday": { "open": "06:00", "close": "23:00" },
+        "saturday": { "open": "07:00", "close": "22:00" },
+        "sunday": { "open": "07:00", "close": "22:00" }
+      }
+    },
+    {
+      "code": "FAROAL",
+      "name": "Faro Airport",
+      "email": "faro@fleetgate.pt",
+      "phone": "+351289000003",
+      "address": "Aeroporto de Faro",
+      "city": "Faro",
+      "postalCode": "8001-701",
+      "country": "Portugal",
+      "latitude": 37.0194,
+      "longitude": -7.9658,
+      "isActive": true,
+      "isPickupPoint": true,
+      "isReturnPoint": true,
+      "isFictitious": false,
+      "openingHours": {
+        "monday": { "open": "06:00", "close": "23:00" },
+        "tuesday": { "open": "06:00", "close": "23:00" },
+        "wednesday": { "open": "06:00", "close": "23:00" },
+        "thursday": { "open": "06:00", "close": "23:00" },
+        "friday": { "open": "06:00", "close": "23:00" },
+        "saturday": { "open": "07:00", "close": "22:00" },
+        "sunday": { "open": "07:00", "close": "22:00" }
+      }
+    },
+    {
+      "code": "MAINTENANCE",
+      "name": "Manutenção - Fictícia",
+      "email": "manutencao@fleetgate.pt",
+      "phone": "+351210000999",
+      "address": "Estação Virtual",
+      "city": "Lisboa",
+      "postalCode": "1000-000",
+      "country": "Portugal",
+      "isActive": false,
+      "isPickupPoint": false,
+      "isReturnPoint": false,
+      "isFictitious": true,
+      "purpose": "MAINTENANCE"
+    },
+    {
+      "code": "STOLEN",
+      "name": "Veículos Roubados - Fictícia",
+      "email": "roubados@fleetgate.pt",
+      "phone": "+351210000998",
+      "address": "Estação Virtual",
+      "city": "Lisboa",
+      "postalCode": "1000-000",
+      "country": "Portugal",
+      "isActive": false,
+      "isPickupPoint": false,
+      "isReturnPoint": false,
+      "isFictitious": true,
+      "purpose": "STOLEN"
+    }
+  ],
+  
+  "vehicleGroups": [
+    {
+      "code": "ECO",
+      "name": "Económico",
+      "description": "Veículos económicos e eficientes para o dia-a-dia",
+      "category": "Económico",
+      "seats": 5,
+      "doors": 4,
+      "transmission": "Manual",
+      "fuelType": "Gasolina",
+      "airConditioning": true,
+      "dailyRate": 25.00,
+      "weeklyRate": 150.00,
+      "monthlyRate": 500.00,
+      "depositAmount": 200.00,
+      "kmIncluded": 0,
+      "extraKmCost": 0.15,
+      "minRentalDays": 1,
+      "maxRentalDays": 365,
+      "minDriverAge": 21,
+      "minLicenseYears": 1,
+      "features": [
+        "Ar condicionado",
+        "Direção assistida",
+        "Rádio/USB",
+        "5 lugares"
+      ],
+      "isActive": true
+    },
+    {
+      "code": "COMP",
+      "name": "Compacto",
+      "description": "Veículos compactos ideais para cidade",
+      "category": "Compacto",
+      "seats": 5,
+      "doors": 4,
+      "transmission": "Manual",
+      "fuelType": "Diesel",
+      "airConditioning": true,
+      "dailyRate": 35.00,
+      "weeklyRate": 210.00,
+      "monthlyRate": 700.00,
+      "depositAmount": 250.00,
+      "kmIncluded": 0,
+      "extraKmCost": 0.18,
+      "minRentalDays": 1,
+      "maxRentalDays": 365,
+      "minDriverAge": 21,
+      "minLicenseYears": 1,
+      "features": [
+        "Ar condicionado",
+        "Direção assistida",
+        "Bluetooth",
+        "Computador de bordo"
+      ],
+      "isActive": true
+    },
+    {
+      "code": "SUV",
+      "name": "SUV",
+      "description": "SUVs espaçosos e confortáveis",
+      "category": "SUV",
+      "seats": 5,
+      "doors": 5,
+      "transmission": "Automático",
+      "fuelType": "Diesel",
+      "airConditioning": true,
+      "dailyRate": 60.00,
+      "weeklyRate": 380.00,
+      "monthlyRate": 1500.00,
+      "depositAmount": 400.00,
+      "kmIncluded": 0,
+      "extraKmCost": 0.25,
+      "minRentalDays": 1,
+      "maxRentalDays": 365,
+      "minDriverAge": 23,
+      "minLicenseYears": 2,
+      "features": [
+        "Ar condicionado dual zone",
+        "Navegação GPS",
+        "Bluetooth",
+        "Cruise control",
+        "Sensores de estacionamento"
+      ],
+      "isActive": true
+    },
+    {
+      "code": "PREM",
+      "name": "Premium",
+      "description": "Veículos premium de luxo",
+      "category": "Premium",
+      "seats": 5,
+      "doors": 4,
+      "transmission": "Automático",
+      "fuelType": "Híbrido",
+      "airConditioning": true,
+      "dailyRate": 120.00,
+      "weeklyRate": 750.00,
+      "monthlyRate": 3000.00,
+      "depositAmount": 600.00,
+      "kmIncluded": 0,
+      "extraKmCost": 0.30,
+      "minRentalDays": 1,
+      "maxRentalDays": 365,
+      "minDriverAge": 25,
+      "minLicenseYears": 3,
+      "features": [
+        "Ar condicionado automático",
+        "Navegação GPS premium",
+        "Sistema de som premium",
+        "Bancos em pele",
+        "Cruise control adaptativo",
+        "Câmara 360°",
+        "Carregamento wireless"
+      ],
+      "isActive": true
+    }
+  ],
+  
+  "damageTypes": [
+    {
+      "name": "Arranhões Pequenos",
+      "category": "EXTERIOR",
+      "severity": "MINOR",
+      "description": "Arranhões superficiais na pintura",
+      "estimatedCost": 50.00,
+      "minCost": 30.00,
+      "maxCost": 80.00
+    },
+    {
+      "name": "Arranhões Profundos",
+      "category": "EXTERIOR",
+      "severity": "MODERATE",
+      "description": "Arranhões profundos na pintura que requerem retoque",
+      "estimatedCost": 200.00,
+      "minCost": 150.00,
+      "maxCost": 300.00
+    },
+    {
+      "name": "Amolgadelas (Médias)",
+      "category": "EXTERIOR",
+      "severity": "MODERATE",
+      "description": "Amolgadelas médias em portas, capô ou laterais",
+      "estimatedCost": 150.00,
+      "minCost": 100.00,
+      "maxCost": 250.00
+    },
+    {
+      "name": "Vidro Lascado",
+      "category": "GLASS",
+      "severity": "MINOR",
+      "description": "Pequenas lascas no para-brisas",
+      "estimatedCost": 80.00,
+      "minCost": 50.00,
+      "maxCost": 120.00
+    },
+    {
+      "name": "Vidro Rachado",
+      "category": "GLASS",
+      "severity": "MAJOR",
+      "description": "Rachaduras no para-brisas que requerem substituição",
+      "estimatedCost": 250.00,
+      "minCost": 200.00,
+      "maxCost": 400.00
+    },
+    {
+      "name": "Queimaduras no Interior",
+      "category": "INTERIOR",
+      "severity": "MODERATE",
+      "description": "Queimaduras em bancos ou painéis",
+      "estimatedCost": 120.00,
+      "minCost": 80.00,
+      "maxCost": 200.00
+    },
+    {
+      "name": "Manchas em Estofos",
+      "category": "INTERIOR",
+      "severity": "MINOR",
+      "description": "Manchas difíceis de remover em estofos",
+      "estimatedCost": 80.00,
+      "minCost": 50.00,
+      "maxCost": 150.00
+    },
+    {
+      "name": "Pneus Furados/Danificados",
+      "category": "MECHANICAL",
+      "severity": "MODERATE",
+      "description": "Pneu furado ou dano na roda",
+      "estimatedCost": 100.00,
+      "minCost": 80.00,
+      "maxCost": 200.00
+    },
+    {
+      "name": "Pára-choques Partido/Danificado",
+      "category": "EXTERIOR",
+      "severity": "MAJOR",
+      "description": "Dano significativo em pára-choques",
+      "estimatedCost": 350.00,
+      "minCost": 250.00,
+      "maxCost": 600.00
+    },
+    {
+      "name": "Espelhos Partidos",
+      "category": "EXTERIOR",
+      "severity": "MODERATE",
+      "description": "Espelhos retrovisores partidos ou danificados",
+      "estimatedCost": 150.00,
+      "minCost": 100.00,
+      "maxCost": 250.00
+    }
+  ],
+  
+  "systemUsers": [
+    {
+      "email": "it@fleetgate.pt",
+      "role": "IT",
+      "firstName": "IT",
+      "lastName": "User",
+      "phone": "+351910000001",
+      "department": "IT",
+      "station": null,
+      "permissions": ["*"]
+    },
+    {
+      "email": "admin.lisboa@fleetgate.pt",
+      "role": "ADMIN",
+      "firstName": "Admin",
+      "lastName": "Lisboa",
+      "phone": "+351910000002",
+      "department": "Operações",
+      "station": "LISAL",
+      "permissions": [
+        "vehicle.upgrade.approve",
+        "staff.move",
+        "user.blacklist",
+        "station.manage"
+      ]
+    },
+    {
+      "email": "staff.lisboa@fleetgate.pt",
+      "role": "STAFF",
+      "firstName": "Staff",
+      "lastName": "Lisboa",
+      "phone": "+351910000003",
+      "department": "Atendimento",
+      "station": "LISAL",
+      "permissions": [
+        "vehicle.upgrade.request",
+        "contract.create",
+        "reservation.manage"
+      ]
+    },
+    {
+      "email": "staff.porto@fleetgate.pt",
+      "role": "STAFF",
+      "firstName": "Staff",
+      "lastName": "Porto",
+      "phone": "+351910000004",
+      "department": "Atendimento",
+      "station": "PORTOAL",
+      "permissions": [
+        "contract.create",
+        "reservation.manage"
+      ]
+    },
+    {
+      "email": "fleet.faro@fleetgate.pt",
+      "role": "FLEET",
+      "firstName": "Fleet",
+      "lastName": "Faro",
+      "phone": "+351910000005",
+      "department": "Operações",
+      "station": "FAROAL",
+      "permissions": [
+        "vehicle.manage",
+        "maintenance.schedule"
+      ]
+    }
+  ],
+  
+  "systemSettings": {
+    "defaultPassword": "Password123!",
+    "requirePasswordChange": true,
+    "defaultContractDays": 7,
+    "defaultDepositPercentage": 20,
+    "maxAdvanceBookingDays": 365,
+    "minAdvanceBookingHours": 2,
+    "lateFeePerDay": 50.00,
+    "fuelChargeEmpty": 80.00,
+    "fuelChargeThreeQuarters": 0.00,
+    "fuelChargeHalf": 40.00,
+    "fuelChargeQuarter": 60.00,
+    "additionalDriverCostPerDay": 10.00,
+    "insuranceDailyCost": 15.00,
+    "gpsRentalPerDay": 5.00,
+    "childSeatPerDay": 5.00,
+    "cleaningFee": 25.00,
+    "currency": "EUR",
+    "locale": "pt-PT",
+    "timezone": "Europe/Lisbon"
+  }
+}
