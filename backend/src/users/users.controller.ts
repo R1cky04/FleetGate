@@ -17,7 +17,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { GrantPermissionDto, MoveStaffDto, RevokePermissionDto } from './dto/user-permissions.dto';
 import { UserRole, UserStatus } from './enums/user-role.enum';
 import { CurrentUser } from '../auth/current-user.decorator';
-import { JwtUser } from '../auth/types';
+import type { JwtUser } from '../auth/types';
 
 @Controller('users')
 export class UsersController {

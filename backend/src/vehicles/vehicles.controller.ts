@@ -14,7 +14,7 @@ import { CreateVehicleDto } from './dto/create-vehicle.dto';
 import { UpdateVehicleDto } from './dto/update-vehicle.dto';
 import { FilterVehicleDto } from './dto/filter-vehicle.dto';
 import { CurrentUser } from '../auth/current-user.decorator';
-import { JwtUser } from '../auth/types';
+import type { JwtUser } from '../auth/types';
 
 @Controller('vehicles')
 export class VehiclesController {

@@ -176,7 +176,7 @@ export class PaymentsService {
       throw new NotFoundException('Pagamento não encontrado');
     }
 
-    if (![PaymentStatus.PAID, PaymentStatus.PARTIAL].includes(payment.status)) {
+    if (![PaymentStatus.PAID, PaymentStatus.PARTIAL].includes(payment.status as any)) {
       throw new BadRequestException('Apenas pagamentos pagos podem ser reembolsados');
     }
 

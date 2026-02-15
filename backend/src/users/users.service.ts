@@ -28,7 +28,7 @@ export class UsersService {
         where: { userCode: normalizedUserCode },
       });
 
-      if (existing && existing.id !== id) {
+      if (existing) {
         throw new BadRequestException('userCode já está em uso');
       }
     }

@@ -19,7 +19,7 @@ import {
   StartVehicleTransferDto,
 } from './dto/filter-vehicle-transfer.dto';
 import { CurrentUser } from '../auth/current-user.decorator';
-import { JwtUser } from '../auth/types';
+import type { JwtUser } from '../auth/types';
 
 @Controller('vehicle-transfers')
 export class VehicleTransfersController {

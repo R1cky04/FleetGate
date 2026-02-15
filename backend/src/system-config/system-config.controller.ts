@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Put } from '@nestjs/common';
 import { SystemConfigService } from './system-config.service';
 import { CurrentUser } from '../auth/current-user.decorator';
-import { JwtUser } from '../auth/types';
+import type { JwtUser } from '../auth/types';
 
 @Controller('system-config')
 export class SystemConfigController {

@@ -14,7 +14,7 @@ import { StationsService } from './stations.service';
 import { CreateStationDto } from './dto/create-station.dto';
 import { UpdateStationDto } from './dto/update-station.dto';
 import { CurrentUser } from '../auth/current-user.decorator';
-import { JwtUser } from '../auth/types';
+import type { JwtUser } from '../auth/types';
 
 @Controller('stations')
 export class StationsController {

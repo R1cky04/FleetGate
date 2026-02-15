@@ -21,7 +21,7 @@ import {
   CheckAvailabilityDto,
 } from './dto/filter-reservation.dto';
 import { CurrentUser } from '../auth/current-user.decorator';
-import { JwtUser } from '../auth/types';
+import type { JwtUser } from '../auth/types';
 
 @Controller('reservations')
 export class ReservationsController {
