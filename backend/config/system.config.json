@@ -1,27 +1,25 @@
 {
   "$schema": "./system.config.schema.json",
   "version": "1.0.0",
-  "lastUpdated": "2026-02-14T00:00:00Z",
-  "updatedBy": "system",
-  
+  "lastUpdated": "2026-02-14T23:57:38.263Z",
+  "updatedBy": "user:28",
   "departments": [
     {
       "name": "IT",
-      "description": "Tecnologia e Sistemas",
+      "description": "Technology and Systems",
       "isActive": true
     },
     {
-      "name": "Operações",
-      "description": "Gestão de frotas e operações",
+      "name": "Operations",
+      "description": "Fleet management and operations",
       "isActive": true
     },
     {
-      "name": "Atendimento",
-      "description": "Atendimento ao cliente",
+      "name": "Customer Service",
+      "description": "Customer support and service",
       "isActive": true
     }
   ],
-  
   "stations": [
     {
       "code": "LISAL",
@@ -39,13 +37,34 @@
       "isReturnPoint": true,
       "isFictitious": false,
       "openingHours": {
-        "monday": { "open": "06:00", "close": "23:00" },
-        "tuesday": { "open": "06:00", "close": "23:00" },
-        "wednesday": { "open": "06:00", "close": "23:00" },
-        "thursday": { "open": "06:00", "close": "23:00" },
-        "friday": { "open": "06:00", "close": "23:00" },
-        "saturday": { "open": "07:00", "close": "22:00" },
-        "sunday": { "open": "07:00", "close": "22:00" }
+        "monday": {
+          "open": "06:00",
+          "close": "23:00"
+        },
+        "tuesday": {
+          "open": "06:00",
+          "close": "23:00"
+        },
+        "wednesday": {
+          "open": "06:00",
+          "close": "23:00"
+        },
+        "thursday": {
+          "open": "06:00",
+          "close": "23:00"
+        },
+        "friday": {
+          "open": "06:00",
+          "close": "23:00"
+        },
+        "saturday": {
+          "open": "07:00",
+          "close": "22:00"
+        },
+        "sunday": {
+          "open": "07:00",
+          "close": "22:00"
+        }
       }
     },
     {
@@ -64,13 +83,34 @@
       "isReturnPoint": true,
       "isFictitious": false,
       "openingHours": {
-        "monday": { "open": "06:00", "close": "23:00" },
-        "tuesday": { "open": "06:00", "close": "23:00" },
-        "wednesday": { "open": "06:00", "close": "23:00" },
-        "thursday": { "open": "06:00", "close": "23:00" },
-        "friday": { "open": "06:00", "close": "23:00" },
-        "saturday": { "open": "07:00", "close": "22:00" },
-        "sunday": { "open": "07:00", "close": "22:00" }
+        "monday": {
+          "open": "06:00",
+          "close": "23:00"
+        },
+        "tuesday": {
+          "open": "06:00",
+          "close": "23:00"
+        },
+        "wednesday": {
+          "open": "06:00",
+          "close": "23:00"
+        },
+        "thursday": {
+          "open": "06:00",
+          "close": "23:00"
+        },
+        "friday": {
+          "open": "06:00",
+          "close": "23:00"
+        },
+        "saturday": {
+          "open": "07:00",
+          "close": "22:00"
+        },
+        "sunday": {
+          "open": "07:00",
+          "close": "22:00"
+        }
       }
     },
     {
@@ -89,13 +129,34 @@
       "isReturnPoint": true,
       "isFictitious": false,
       "openingHours": {
-        "monday": { "open": "06:00", "close": "23:00" },
-        "tuesday": { "open": "06:00", "close": "23:00" },
-        "wednesday": { "open": "06:00", "close": "23:00" },
-        "thursday": { "open": "06:00", "close": "23:00" },
-        "friday": { "open": "06:00", "close": "23:00" },
-        "saturday": { "open": "07:00", "close": "22:00" },
-        "sunday": { "open": "07:00", "close": "22:00" }
+        "monday": {
+          "open": "06:00",
+          "close": "23:00"
+        },
+        "tuesday": {
+          "open": "06:00",
+          "close": "23:00"
+        },
+        "wednesday": {
+          "open": "06:00",
+          "close": "23:00"
+        },
+        "thursday": {
+          "open": "06:00",
+          "close": "23:00"
+        },
+        "friday": {
+          "open": "06:00",
+          "close": "23:00"
+        },
+        "saturday": {
+          "open": "07:00",
+          "close": "22:00"
+        },
+        "sunday": {
+          "open": "07:00",
+          "close": "22:00"
+        }
       }
     },
     {
@@ -129,22 +190,21 @@
       "purpose": "STOLEN"
     }
   ],
-  
   "vehicleGroups": [
     {
       "code": "ECO",
-      "name": "Económico",
-      "description": "Veículos económicos e eficientes para o dia-a-dia",
-      "category": "Económico",
+      "name": "Economy",
+      "description": "Economic and efficient vehicles for daily use",
+      "category": "Economy",
       "seats": 5,
       "doors": 4,
       "transmission": "Manual",
-      "fuelType": "Gasolina",
+      "fuelType": "Gasoline",
       "airConditioning": true,
-      "dailyRate": 25.00,
-      "weeklyRate": 150.00,
-      "monthlyRate": 500.00,
-      "depositAmount": 200.00,
+      "dailyRate": 25,
+      "weeklyRate": 150,
+      "monthlyRate": 500,
+      "depositAmount": 200,
       "kmIncluded": 0,
       "extraKmCost": 0.15,
       "minRentalDays": 1,
@@ -152,27 +212,27 @@
       "minDriverAge": 21,
       "minLicenseYears": 1,
       "features": [
-        "Ar condicionado",
-        "Direção assistida",
-        "Rádio/USB",
-        "5 lugares"
+        "Air conditioning",
+        "Power steering",
+        "Radio/USB",
+        "5 seats"
       ],
       "isActive": true
     },
     {
       "code": "COMP",
-      "name": "Compacto",
-      "description": "Veículos compactos ideais para cidade",
-      "category": "Compacto",
+      "name": "Compact",
+      "description": "Compact vehicles ideal for city driving",
+      "category": "Compact",
       "seats": 5,
       "doors": 4,
       "transmission": "Manual",
       "fuelType": "Diesel",
       "airConditioning": true,
-      "dailyRate": 35.00,
-      "weeklyRate": 210.00,
-      "monthlyRate": 700.00,
-      "depositAmount": 250.00,
+      "dailyRate": 35,
+      "weeklyRate": 210,
+      "monthlyRate": 700,
+      "depositAmount": 250,
       "kmIncluded": 0,
       "extraKmCost": 0.18,
       "minRentalDays": 1,
@@ -180,27 +240,27 @@
       "minDriverAge": 21,
       "minLicenseYears": 1,
       "features": [
-        "Ar condicionado",
-        "Direção assistida",
+        "Air conditioning",
+        "Power steering",
         "Bluetooth",
-        "Computador de bordo"
+        "Trip computer"
       ],
       "isActive": true
     },
     {
       "code": "SUV",
       "name": "SUV",
-      "description": "SUVs espaçosos e confortáveis",
+      "description": "Spacious and comfortable SUVs",
       "category": "SUV",
       "seats": 5,
       "doors": 5,
       "transmission": "Automático",
       "fuelType": "Diesel",
       "airConditioning": true,
-      "dailyRate": 60.00,
-      "weeklyRate": 380.00,
-      "monthlyRate": 1500.00,
-      "depositAmount": 400.00,
+      "dailyRate": 60,
+      "weeklyRate": 380,
+      "monthlyRate": 1500,
+      "depositAmount": 400,
       "kmIncluded": 0,
       "extraKmCost": 0.25,
       "minRentalDays": 1,
@@ -208,140 +268,237 @@
       "minDriverAge": 23,
       "minLicenseYears": 2,
       "features": [
-        "Ar condicionado dual zone",
-        "Navegação GPS",
+        "Dual-zone air conditioning",
+        "GPS navigation",
         "Bluetooth",
         "Cruise control",
-        "Sensores de estacionamento"
+        "Parking sensors"
       ],
       "isActive": true
     },
     {
       "code": "PREM",
       "name": "Premium",
-      "description": "Veículos premium de luxo",
+      "description": "Luxury premium vehicles",
       "category": "Premium",
       "seats": 5,
       "doors": 4,
       "transmission": "Automático",
-      "fuelType": "Híbrido",
+      "fuelType": "Hybrid",
       "airConditioning": true,
-      "dailyRate": 120.00,
-      "weeklyRate": 750.00,
-      "monthlyRate": 3000.00,
-      "depositAmount": 600.00,
+      "dailyRate": 120,
+      "weeklyRate": 750,
+      "monthlyRate": 3000,
+      "depositAmount": 600,
       "kmIncluded": 0,
-      "extraKmCost": 0.30,
+      "extraKmCost": 0.3,
       "minRentalDays": 1,
       "maxRentalDays": 365,
       "minDriverAge": 25,
       "minLicenseYears": 3,
       "features": [
-        "Ar condicionado automático",
-        "Navegação GPS premium",
-        "Sistema de som premium",
-        "Bancos em pele",
-        "Cruise control adaptativo",
-        "Câmara 360°",
-        "Carregamento wireless"
+        "Automatic air conditioning",
+        "Premium GPS navigation",
+        "Premium sound system",
+        "Leather seats",
+        "Adaptive cruise control",
+        "360 camera",
+        "Wireless charging"
       ],
       "isActive": true
     }
   ],
-  
+  "extras": [
+    {
+      "code": "GPS",
+      "name": "GPS",
+      "description": "GPS navigation system",
+      "unit": "per_day",
+      "price": 5,
+      "isActive": true
+    },
+    {
+      "code": "CHILD_SEAT",
+      "name": "Child seat",
+      "description": "Approved child safety seat",
+      "unit": "per_day",
+      "price": 5,
+      "stockByStation": {
+        "LISAL": 20,
+        "PORTOAL": 15,
+        "FAROAL": 10
+      },
+      "isActive": true
+    },
+    {
+      "code": "EXTRA_DRIVER",
+      "name": "Additional driver",
+      "description": "Additional driver per contract",
+      "unit": "per_day",
+      "price": 10,
+      "isActive": true
+    }
+  ],
+  "customerTypes": [
+    {
+      "code": "INDIVIDUAL",
+      "name": "Individual",
+      "description": "Individual customer",
+      "isActive": true
+    },
+    {
+      "code": "COMPANY",
+      "name": "Company",
+      "description": "Corporate customer",
+      "isActive": true
+    },
+    {
+      "code": "BROKER",
+      "name": "Broker",
+      "description": "Broker partner",
+      "isActive": true
+    }
+  ],
+  "documentTypes": [
+    {
+      "code": "NIF",
+      "name": "NIF",
+      "description": "Tax identification number",
+      "country": "Portugal",
+      "minLength": 9,
+      "maxLength": 9,
+      "pattern": "^[0-9]{9}$",
+      "isActive": true
+    },
+    {
+      "code": "CC",
+      "name": "Citizen card",
+      "description": "National identity document",
+      "country": "Portugal",
+      "minLength": 8,
+      "maxLength": 12,
+      "isActive": true
+    },
+    {
+      "code": "PASSPORT",
+      "name": "Passaporte",
+      "description": "International passport",
+      "country": "Global",
+      "minLength": 6,
+      "maxLength": 12,
+      "isActive": true
+    }
+  ],
   "damageTypes": [
     {
       "name": "Arranhões Pequenos",
       "category": "EXTERIOR",
       "severity": "MINOR",
       "description": "Arranhões superficiais na pintura",
-      "estimatedCost": 50.00,
-      "minCost": 30.00,
-      "maxCost": 80.00
+      "estimatedCost": 50,
+      "minCost": 30,
+      "maxCost": 80
     },
     {
       "name": "Arranhões Profundos",
       "category": "EXTERIOR",
       "severity": "MODERATE",
       "description": "Arranhões profundos na pintura que requerem retoque",
-      "estimatedCost": 200.00,
-      "minCost": 150.00,
-      "maxCost": 300.00
+      "estimatedCost": 200,
+      "minCost": 150,
+      "maxCost": 300
     },
     {
       "name": "Amolgadelas (Médias)",
       "category": "EXTERIOR",
       "severity": "MODERATE",
       "description": "Amolgadelas médias em portas, capô ou laterais",
-      "estimatedCost": 150.00,
-      "minCost": 100.00,
-      "maxCost": 250.00
+      "estimatedCost": 150,
+      "minCost": 100,
+      "maxCost": 250
     },
     {
       "name": "Vidro Lascado",
       "category": "GLASS",
       "severity": "MINOR",
       "description": "Pequenas lascas no para-brisas",
-      "estimatedCost": 80.00,
-      "minCost": 50.00,
-      "maxCost": 120.00
+      "estimatedCost": 80,
+      "minCost": 50,
+      "maxCost": 120
     },
     {
       "name": "Vidro Rachado",
       "category": "GLASS",
       "severity": "MAJOR",
       "description": "Rachaduras no para-brisas que requerem substituição",
-      "estimatedCost": 250.00,
-      "minCost": 200.00,
-      "maxCost": 400.00
+      "estimatedCost": 250,
+      "minCost": 200,
+      "maxCost": 400
     },
     {
       "name": "Queimaduras no Interior",
       "category": "INTERIOR",
       "severity": "MODERATE",
       "description": "Queimaduras em bancos ou painéis",
-      "estimatedCost": 120.00,
-      "minCost": 80.00,
-      "maxCost": 200.00
+      "estimatedCost": 120,
+      "minCost": 80,
+      "maxCost": 200
     },
     {
       "name": "Manchas em Estofos",
       "category": "INTERIOR",
       "severity": "MINOR",
       "description": "Manchas difíceis de remover em estofos",
-      "estimatedCost": 80.00,
-      "minCost": 50.00,
-      "maxCost": 150.00
+      "estimatedCost": 80,
+      "minCost": 50,
+      "maxCost": 150
     },
     {
       "name": "Pneus Furados/Danificados",
       "category": "MECHANICAL",
       "severity": "MODERATE",
       "description": "Pneu furado ou dano na roda",
-      "estimatedCost": 100.00,
-      "minCost": 80.00,
-      "maxCost": 200.00
+      "estimatedCost": 100,
+      "minCost": 80,
+      "maxCost": 200
     },
     {
       "name": "Pára-choques Partido/Danificado",
       "category": "EXTERIOR",
       "severity": "MAJOR",
       "description": "Dano significativo em pára-choques",
-      "estimatedCost": 350.00,
-      "minCost": 250.00,
-      "maxCost": 600.00
+      "estimatedCost": 350,
+      "minCost": 250,
+      "maxCost": 600
     },
     {
       "name": "Espelhos Partidos",
       "category": "EXTERIOR",
       "severity": "MODERATE",
       "description": "Espelhos retrovisores partidos ou danificados",
-      "estimatedCost": 150.00,
-      "minCost": 100.00,
-      "maxCost": 250.00
+      "estimatedCost": 150,
+      "minCost": 100,
+      "maxCost": 250
     }
   ],
-  
+  "insuranceTypes": [
+    {
+      "code": "BASIC",
+      "name": "Seguro Base",
+      "description": "Cobertura basica obrigatoria",
+      "dailyCost": 15,
+      "isDefault": true,
+      "isActive": true
+    },
+    {
+      "code": "PLUS",
+      "name": "Seguro Plus",
+      "description": "Cobertura alargada",
+      "dailyCost": 25,
+      "isDefault": false,
+      "isActive": true
+    }
+  ],
   "systemUsers": [
     {
       "email": "it@fleetgate.pt",
@@ -351,7 +508,9 @@
       "phone": "+351910000001",
       "department": "IT",
       "station": null,
-      "permissions": ["*"]
+      "permissions": [
+        "*"
+      ]
     },
     {
       "email": "admin.lisboa@fleetgate.pt",
@@ -409,7 +568,22 @@
       ]
     }
   ],
-  
+  "paymentProfiles": [
+    {
+      "code": "DEFAULT",
+      "name": "Default Payment Methods",
+      "rentACarCode": "FLEETGATE",
+      "methods": [
+        "CASH",
+        "CREDIT_CARD",
+        "DEBIT_CARD",
+        "BANK_TRANSFER",
+        "MB_WAY",
+        "MULTIBANCO"
+      ],
+      "isActive": true
+    }
+  ],
   "systemSettings": {
     "defaultPassword": "Password123!",
     "requirePasswordChange": true,
@@ -417,16 +591,66 @@
     "defaultDepositPercentage": 20,
     "maxAdvanceBookingDays": 365,
     "minAdvanceBookingHours": 2,
-    "lateFeePerDay": 50.00,
-    "fuelChargeEmpty": 80.00,
-    "fuelChargeThreeQuarters": 0.00,
-    "fuelChargeHalf": 40.00,
-    "fuelChargeQuarter": 60.00,
-    "additionalDriverCostPerDay": 10.00,
-    "insuranceDailyCost": 15.00,
-    "gpsRentalPerDay": 5.00,
-    "childSeatPerDay": 5.00,
-    "cleaningFee": 25.00,
+    "lateFeePerDay": 50,
+    "fuelChargeEmpty": 80,
+    "fuelChargeThreeQuarters": 0,
+    "fuelChargeHalf": 40,
+    "fuelChargeQuarter": 60,
+    "additionalDriverCostPerDay": 10,
+    "insuranceDailyCost": 15,
+    "defaultInsuranceType": "BASIC",
+    "gpsRentalPerDay": 5,
+    "childSeatPerDay": 5,
+    "cleaningFee": 25,
+    "paymentMethods": [
+      "CASH",
+      "CREDIT_CARD",
+      "DEBIT_CARD",
+      "BANK_TRANSFER",
+      "MB_WAY",
+      "MULTIBANCO"
+    ],
+    "depositRules": {
+      "defaultDepositPercentage": 20,
+      "minDepositAmount": 100,
+      "maxDepositAmount": 2000
+    },
+    "fuelLevels": [
+      "Empty",
+      "1/4",
+      "1/2",
+      "3/4",
+      "Full"
+    ],
+    "kmPolicy": {
+      "defaultIncludedKm": 0,
+      "extraKmCost": 0.2
+    },
+    "contractExtensionPolicy": {
+      "allowSameRateExtension": true,
+      "allowedRoles": [
+        "ADMIN",
+        "IT"
+      ]
+    },
+    "vatRates": [
+      {
+        "country": "Portugal",
+        "rate": 0.23,
+        "includeInPrices": true
+      },
+      {
+        "country": "Spain",
+        "rate": 0.21,
+        "includeInPrices": true
+      }
+    ],
+    "termsAndConditions": {
+      "version": "2026.02",
+      "title": "Rental Terms and Conditions",
+      "text": "By accepting, the customer agrees to the rental terms and conditions, including responsibilities, limits, insurance coverage, and damage policies.",
+      "lastUpdated": "2026-02-14T00:00:00Z"
+    },
     "currency": "EUR",
     "locale": "pt-PT",
     "timezone": "Europe/Lisbon"

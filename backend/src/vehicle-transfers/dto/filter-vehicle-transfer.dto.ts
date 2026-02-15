@@ -21,6 +21,10 @@ export class FilterVehicleTransferDto {
   @IsOptional()
   status?: VehicleTransferStatus;
 
+  @IsString()
+  @IsOptional()
+  search?: string;
+
   @IsDateString()
   @IsOptional()
   fromDate?: string;

@@ -20,6 +20,8 @@ import {
   CancelReservationDto,
   CheckAvailabilityDto,
 } from './dto/filter-reservation.dto';
+import { CurrentUser } from '../auth/current-user.decorator';
+import { JwtUser } from '../auth/types';
 
 @Controller('reservations')
 export class ReservationsController {
@@ -27,17 +29,16 @@ export class ReservationsController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  create(@Body() createReservationDto: CreateReservationDto) {
-    // TODO: Get userId from JWT token
-    const createdById = 1; // Temporary: replace with JWT user ID
-    return this.reservationsService.create(createReservationDto, createdById);
+  create(
+    @Body() createReservationDto: CreateReservationDto,
+    @CurrentUser() user: JwtUser,
+  ) {
+    return this.reservationsService.create(createReservationDto, user.id);
   }
 
   @Get()
-  findAll(@Query() filterDto: FilterReservationDto) {
-    // TODO: Get userId from JWT token
-    const userId = 1; // Temporary: replace with JWT user ID
-    return this.reservationsService.findAll(filterDto, userId);
+  findAll(@Query() filterDto: FilterReservationDto, @CurrentUser() user: JwtUser) {
+    return this.reservationsService.findAll(filterDto, user.id);
   }
 
   @Post('check-availability')
@@ -46,47 +47,45 @@ export class ReservationsController {
   }
 
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    // TODO: Get userId from JWT token
-    const userId = 1; // Temporary: replace with JWT user ID
-    return this.reservationsService.findOne(id, userId);
+  findOne(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: JwtUser) {
+    return this.reservationsService.findOne(id, user.id);
   }
 
   @Patch(':id')
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateReservationDto: UpdateReservationDto,
+    @CurrentUser() user: JwtUser,
   ) {
-    // TODO: Get userId from JWT token
-    const userId = 1; // Temporary: replace with JWT user ID
-    return this.reservationsService.update(id, updateReservationDto, userId);
+    return this.reservationsService.update(id, updateReservationDto, user.id);
   }
 
   @Post(':id/confirm')
   confirm(
     @Param('id', ParseIntPipe) id: number,
     @Body() confirmDto: ConfirmReservationDto,
+    @CurrentUser() user: JwtUser,
   ) {
-    // TODO: Get userId from JWT token
-    const userId = 1; // Temporary: replace with JWT user ID
-    return this.reservationsService.confirmReservation(id, confirmDto, userId);
+    return this.reservationsService.confirmReservation(id, confirmDto, user.id);
   }
 
   @Post(':id/cancel')
   cancel(
     @Param('id', ParseIntPipe) id: number,
     @Body() cancelDto: CancelReservationDto,
+    @CurrentUser() user: JwtUser,
   ) {
-    // TODO: Get userId from JWT token
-    const userId = 1; // Temporary: replace with JWT user ID
-    return this.reservationsService.cancelReservation(id, cancelDto, userId);
+    return this.reservationsService.cancelReservation(id, cancelDto, user.id);
+  }
+
+  @Post(':id/reopen')
+  reopen(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: JwtUser) {
+    return this.reservationsService.reopenReservation(id, user.id);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  remove(@Param('id', ParseIntPipe) id: number) {
-    // TODO: Get userId from JWT token
-    const userId = 1; // Temporary: replace with JWT user ID
-    return this.reservationsService.remove(id, userId);
+  remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: JwtUser) {
+    return this.reservationsService.remove(id, user.id);
   }
 }

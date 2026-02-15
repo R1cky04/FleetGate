@@ -16,6 +16,8 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { GrantPermissionDto, MoveStaffDto, RevokePermissionDto } from './dto/user-permissions.dto';
 import { UserRole, UserStatus } from './enums/user-role.enum';
+import { CurrentUser } from '../auth/current-user.decorator';
+import { JwtUser } from '../auth/types';
 
 @Controller('users')
 export class UsersController {
@@ -23,9 +25,8 @@ export class UsersController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  create(@Body() createUserDto: CreateUserDto) {
-    // TODO: Pegar userId do token JWT
-    return this.usersService.create(createUserDto);
+  create(@Body() createUserDto: CreateUserDto, @CurrentUser() user: JwtUser) {
+    return this.usersService.create(createUserDto, user.id);
   }
 
   @Get()
@@ -33,9 +34,12 @@ export class UsersController {
     @Query('role') role?: UserRole,
     @Query('status') status?: UserStatus,
     @Query('stationId') stationId?: string,
+    @Query('customerType') customerType?: string,
+    @Query('companyName') companyName?: string,
+    @Query('brokerName') brokerName?: string,
     @Query('search') search?: string,
   ) {
-    return this.usersService.findAll({ role, status, stationId, search });
+    return this.usersService.findAll({ role, status, stationId, customerType, companyName, brokerName, search });
   }
 
   @Get(':id')
@@ -57,17 +61,13 @@ export class UsersController {
   // ===== PERMISSIONS =====
 
   @Post('permissions/grant')
-  grantPermissions(@Body() dto: GrantPermissionDto) {
-    // TODO: Pegar userId do token JWT
-    const grantedBy = 1; // Temporary: replace with JWT user ID
-    return this.usersService.grantPermissions(dto, grantedBy);
+  grantPermissions(@Body() dto: GrantPermissionDto, @CurrentUser() user: JwtUser) {
+    return this.usersService.grantPermissions(dto, user.id);
   }
 
   @Post('permissions/revoke')
-  revokePermissions(@Body() dto: RevokePermissionDto) {
-    // TODO: Pegar userId do token JWT
-    const revokedBy = 1; // Temporary: replace with JWT user ID
-    return this.usersService.revokePermissions(dto, revokedBy);
+  revokePermissions(@Body() dto: RevokePermissionDto, @CurrentUser() user: JwtUser) {
+    return this.usersService.revokePermissions(dto, user.id);
   }
 
   @Get(':id/permissions')
@@ -78,10 +78,8 @@ export class UsersController {
   // ===== STAFF MANAGEMENT =====
 
   @Post('staff/move')
-  moveStaff(@Body() dto: MoveStaffDto) {
-    // TODO: Pegar userId do token JWT
-    const movedBy = 1; // Temporary: replace with JWT user ID
-    return this.usersService.moveStaff(dto, movedBy);
+  moveStaff(@Body() dto: MoveStaffDto, @CurrentUser() user: JwtUser) {
+    return this.usersService.moveStaff(dto, user.id);
   }
 
   @Get('station/:stationId/staff')

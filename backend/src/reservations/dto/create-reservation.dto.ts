@@ -143,6 +143,10 @@ export class CreateReservationDto {
   @IsOptional()
   insuranceCost?: number;
 
+  @IsString()
+  @IsOptional()
+  insuranceType?: string;
+
   @IsInt()
   @Min(0)
   @IsOptional()

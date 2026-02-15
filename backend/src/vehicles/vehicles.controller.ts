@@ -13,6 +13,8 @@ import { VehiclesService } from './vehicles.service';
 import { CreateVehicleDto } from './dto/create-vehicle.dto';
 import { UpdateVehicleDto } from './dto/update-vehicle.dto';
 import { FilterVehicleDto } from './dto/filter-vehicle.dto';
+import { CurrentUser } from '../auth/current-user.decorator';
+import { JwtUser } from '../auth/types';
 
 @Controller('vehicles')
 export class VehiclesController {
@@ -21,28 +23,25 @@ export class VehiclesController {
   @Post()
   create(
     @Body() createVehicleDto: CreateVehicleDto,
+    @CurrentUser() user: JwtUser,
   ) {
-    // TODO: Get userId from JWT token
-    const userId = 1; // Temporary: replace with JWT user ID
-    return this.vehiclesService.create(createVehicleDto, userId);
+    return this.vehiclesService.create(createVehicleDto, user.id);
   }
 
   @Get()
   findAll(
     @Query() filterDto: FilterVehicleDto,
+    @CurrentUser() user: JwtUser,
   ) {
-    // TODO: Get userId from JWT token
-    const userId = 1; // Temporary: replace with JWT user ID
-    return this.vehiclesService.findAll(filterDto, userId);
+    return this.vehiclesService.findAll(filterDto, user.id);
   }
 
   @Get('station/:stationId')
   getByStation(
     @Param('stationId') stationId: string,
+    @CurrentUser() user: JwtUser,
   ) {
-    // TODO: Get userId from JWT token
-    const userId = 1; // Temporary: replace with JWT user ID
-    return this.vehiclesService.getVehiclesByStation(stationId, userId);
+    return this.vehiclesService.getVehiclesByStation(stationId, user.id);
   }
 
   @Get('available')
@@ -58,31 +57,33 @@ export class VehiclesController {
     );
   }
 
+  @Get(':id/history')
+  getHistory(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: JwtUser) {
+    return this.vehiclesService.getHistory(id, user.id);
+  }
+
   @Get(':id')
   findOne(
     @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: JwtUser,
   ) {
-    // TODO: Get userId from JWT token
-    const userId = 1; // Temporary: replace with JWT user ID
-    return this.vehiclesService.findOne(id, userId);
+    return this.vehiclesService.findOne(id, user.id);
   }
 
   @Patch(':id')
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateVehicleDto: UpdateVehicleDto,
+    @CurrentUser() user: JwtUser,
   ) {
-    // TODO: Get userId from JWT token
-    const userId = 1; // Temporary: replace with JWT user ID
-    return this.vehiclesService.update(id, updateVehicleDto, userId);
+    return this.vehiclesService.update(id, updateVehicleDto, user.id);
   }
 
   @Delete(':id')
   remove(
     @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: JwtUser,
   ) {
-    // TODO: Get userId from JWT token
-    const userId = 1; // Temporary: replace with JWT user ID
-    return this.vehiclesService.remove(id, userId);
+    return this.vehiclesService.remove(id, user.id);
   }
 }

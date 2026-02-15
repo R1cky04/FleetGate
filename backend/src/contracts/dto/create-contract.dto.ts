@@ -8,9 +8,11 @@ import {
   IsBoolean,
   Min,
   IsArray,
+  ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ContractStatus } from '../../../generated/prisma';
+import { DamageMapItemDto } from './damage-map.dto';
 
 export class CreateContractDto {
   @IsInt()
@@ -66,6 +68,10 @@ export class CreateContractDto {
   @IsOptional()
   insuranceCost?: number;
 
+  @IsString()
+  @IsOptional()
+  insuranceType?: string;
+
   @IsNumber()
   @Min(0)
   @IsOptional()
@@ -92,8 +98,18 @@ export class CreateContractDto {
   @IsOptional()
   extras?: any; // JSON object
 
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => DamageMapItemDto)
   @IsOptional()
-  damagesOut?: any; // JSON array
+  damagesOut?: DamageMapItemDto[];
+
+  @IsString()
+  termsSignature: string;
+
+  @IsDateString()
+  @IsOptional()
+  termsAcceptedAt?: string;
 
   @IsString()
   @IsOptional()

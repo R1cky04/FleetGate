@@ -1,5 +1,16 @@
-import { IsDateString, IsInt, IsString, IsNumber, IsOptional, IsBoolean, Min } from 'class-validator';
+import {
+  IsDateString,
+  IsInt,
+  IsString,
+  IsNumber,
+  IsOptional,
+  IsBoolean,
+  Min,
+  IsArray,
+  ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
+import { DamageMapItemDto } from './damage-map.dto';
 
 export class CompleteContractDto {
   @IsDateString()
@@ -27,8 +38,11 @@ export class CompleteContractDto {
   @IsOptional()
   damageCost?: number;
 
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => DamageMapItemDto)
   @IsOptional()
-  damagesIn?: any; // JSON array
+  damagesIn?: DamageMapItemDto[];
 
   @IsString()
   @IsOptional()
@@ -42,9 +56,41 @@ export class CompleteContractDto {
   @IsOptional()
   stationNotes?: string;
 
+  @IsString()
+  closeClientSignature: string;
+
+  @IsString()
+  closeStaffSignature: string;
+
+  @IsBoolean()
+  @IsOptional()
+  confirmPaymentReceived?: boolean;
+
   @IsBoolean()
   @IsOptional()
   depositReturned?: boolean;
+}
+
+export class PreCloseContractDto {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => DamageMapItemDto)
+  @IsOptional()
+  damagesIn?: DamageMapItemDto[];
+
+  @IsString()
+  @IsOptional()
+  damageOnReturn?: string;
+
+  @IsString()
+  preCloseClientSignature: string;
+
+  @IsString()
+  preCloseStaffSignature: string;
+
+  @IsString()
+  @IsOptional()
+  stationNotes?: string;
 }
 
 export class CancelContractDto {
@@ -55,6 +101,21 @@ export class CancelContractDto {
   @IsOptional()
   clientNotes?: string;
 
+  @IsString()
+  @IsOptional()
+  stationNotes?: string;
+}
+
+export class ExtendContractDto {
+  @IsDateString()
+  newPlannedReturnDate: string;
+
+  @IsString()
+  @IsOptional()
+  stationNotes?: string;
+}
+
+export class ReopenContractDto {
   @IsString()
   @IsOptional()
   stationNotes?: string;
@@ -82,6 +143,14 @@ export class FilterContractDto {
   @IsString()
   @IsOptional()
   search?: string; // Search by contract number or client name
+
+  @IsDateString()
+  @IsOptional()
+  fromDate?: string;
+
+  @IsDateString()
+  @IsOptional()
+  toDate?: string;
 
   @IsInt()
   @Type(() => Number)

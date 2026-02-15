@@ -1,4 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { promises as fs } from 'fs';
+import * as path from 'path';
 import { PrismaService } from '../prisma.service';
 import { CreateReservationDto } from './dto/create-reservation.dto';
 import { UpdateReservationDto } from './dto/update-reservation.dto';
@@ -8,7 +10,7 @@ import {
   CancelReservationDto,
   CheckAvailabilityDto,
 } from './dto/filter-reservation.dto';
-import { UserRole, ReservationStatus, VehicleStatus, UserStatus } from '../../generated/prisma';
+import { UserRole, ReservationStatus, VehicleStatus, UserStatus, ContractStatus } from '../../generated/prisma';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -100,6 +102,7 @@ export class ReservationsService {
     }
 
     // Se tem vehicleGroupId, verificar que existe
+    let resolvedDailyRate = createReservationDto.dailyRate;
     if (createReservationDto.vehicleGroupId) {
       const group = await this.prisma.vehicleGroup.findUnique({
         where: { id: createReservationDto.vehicleGroupId },
@@ -107,6 +110,19 @@ export class ReservationsService {
 
       if (!group) {
         throw new NotFoundException('Grupo de veículo não encontrado');
+      }
+
+      resolvedDailyRate = group.dailyRate;
+    }
+
+    if (createReservationDto.vehicleId && !createReservationDto.vehicleGroupId) {
+      const assignedVehicle = await this.prisma.vehicle.findUnique({
+        where: { id: createReservationDto.vehicleId },
+        include: { group: true },
+      });
+
+      if (assignedVehicle?.group) {
+        resolvedDailyRate = assignedVehicle.group.dailyRate;
       }
     }
 
@@ -124,7 +140,19 @@ export class ReservationsService {
       stationNotes = `[BROKER] Ref: ${createReservationDto.brokerReference}\n${stationNotes}`.trim();
     }
 
+    const { insuranceCost, insuranceType } = await this.resolveInsuranceCost(createReservationDto);
+
     // Preparar dados da reserva
+    const pricing = await this.calculateReservationPricing(
+      { ...createReservationDto, dailyRate: resolvedDailyRate, insuranceCost },
+      pickupStation.country,
+    );
+
+    const depositPaid = await this.resolveDepositPaid(
+      pricing.baseTotal,
+      createReservationDto.depositPaid,
+    );
+
     const reservationData: any = {
       reservationNumber,
       clientId,
@@ -132,15 +160,22 @@ export class ReservationsService {
       returnStationId: createReservationDto.returnStationId,
       pickupDate: new Date(createReservationDto.pickupDate),
       returnDate: new Date(createReservationDto.returnDate),
-      dailyRate: createReservationDto.dailyRate,
+      dailyRate: resolvedDailyRate,
       totalDays: createReservationDto.totalDays,
-      estimatedTotal: createReservationDto.estimatedTotal,
-      depositPaid: createReservationDto.depositPaid || 0,
+      estimatedTotal: pricing.baseTotal,
+      depositPaid,
       includeInsurance: createReservationDto.includeInsurance || false,
-      insuranceCost: createReservationDto.insuranceCost || 0,
+      insuranceCost,
+      insuranceType,
       additionalDrivers: createReservationDto.additionalDrivers || 0,
       additionalDriverCost: createReservationDto.additionalDriverCost || 0,
       extras,
+      vehicleAmount: pricing.vehicleAmount,
+      extrasAmount: pricing.extrasAmount,
+      insuranceAmount: pricing.insuranceAmount,
+      taxRate: pricing.taxRate,
+      taxAmount: pricing.taxAmount,
+      totalWithTax: pricing.totalWithTax,
       clientNotes: createReservationDto.clientNotes,
       stationNotes,
       status: ReservationStatus.PENDING,
@@ -154,6 +189,13 @@ export class ReservationsService {
     if (createReservationDto.vehicleGroupId) {
       reservationData.vehicleGroupId = createReservationDto.vehicleGroupId;
     }
+
+    await this.ensureExtrasAvailability(
+      createReservationDto.extras,
+      pickupStation.code,
+      new Date(createReservationDto.pickupDate),
+      new Date(createReservationDto.returnDate),
+    );
 
     // Criar reserva
     const reservation = await this.prisma.reservation.create({
@@ -189,7 +231,7 @@ export class ReservationsService {
   }
 
   async findAll(filterDto: FilterReservationDto, userId?: number) {
-    const { page = 1, limit = 20, search, ...filters } = filterDto;
+    const { page = 1, limit = 20, search, fromDate, toDate, ...filters } = filterDto;
     const skip = (page - 1) * limit;
 
     // Construir condições de filtro
@@ -237,11 +279,30 @@ export class ReservationsService {
       where.stationNotes = { contains: `[${filters.source.toUpperCase()}]`, mode: 'insensitive' };
     }
 
+    if (fromDate || toDate) {
+      where.pickupDate = {
+        ...(fromDate && { gte: new Date(fromDate) }),
+        ...(toDate && { lte: new Date(toDate) }),
+      };
+    }
+
     if (search) {
-      where.OR = [
+      const searchOr = [
         { reservationNumber: { contains: search, mode: 'insensitive' } },
         { client: { fullName: { contains: search, mode: 'insensitive' } } },
+        { client: { email: { contains: search, mode: 'insensitive' } } },
+        { client: { phone: { contains: search, mode: 'insensitive' } } },
+        { vehicle: { licensePlate: { contains: search, mode: 'insensitive' } } },
+        { pickupStation: { code: { contains: search, mode: 'insensitive' } } },
+        { returnStation: { code: { contains: search, mode: 'insensitive' } } },
       ];
+
+      if (where.OR) {
+        where.AND = [{ OR: where.OR }, { OR: searchOr }];
+        delete where.OR;
+      } else {
+        where.OR = searchOr;
+      }
     }
 
     const [reservations, total] = await Promise.all([
@@ -628,6 +689,55 @@ export class ReservationsService {
     return updatedReservation;
   }
 
+  async reopenReservation(id: number, userId: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Usuário não encontrado');
+    }
+
+    if (user.role !== UserRole.IT) {
+      throw new ForbiddenException('Apenas IT pode reabrir reservas');
+    }
+
+    const reservation = await this.prisma.reservation.findUnique({
+      where: { id },
+      include: { contract: true },
+    });
+
+    if (!reservation) {
+      throw new NotFoundException('Reserva não encontrada');
+    }
+
+    if (reservation.contract) {
+      throw new BadRequestException('Não é possível reabrir reserva que já virou contrato');
+    }
+
+    if (
+      reservation.status !== ReservationStatus.CANCELLED &&
+      reservation.status !== ReservationStatus.COMPLETED
+    ) {
+      throw new BadRequestException('Apenas reservas canceladas ou completadas podem ser reabertas');
+    }
+
+    return this.prisma.reservation.update({
+      where: { id },
+      data: {
+        status: ReservationStatus.PENDING,
+        cancelledAt: null,
+        cancelReason: null,
+      },
+      include: {
+        client: true,
+        vehicle: true,
+        pickupStation: true,
+        returnStation: true,
+      },
+    });
+  }
+
   async checkAvailability(checkDto: CheckAvailabilityDto) {
     const pickupDate = new Date(checkDto.pickupDate);
     const returnDate = new Date(checkDto.returnDate);
@@ -710,6 +820,232 @@ export class ReservationsService {
     };
   }
 
+  private async calculateReservationPricing(
+    dto: CreateReservationDto,
+    country: string,
+  ): Promise<{
+    vehicleAmount: number;
+    extrasAmount: number;
+    insuranceAmount: number;
+    baseTotal: number;
+    taxRate: number | null;
+    taxAmount: number | null;
+    totalWithTax: number | null;
+  }> {
+    const vehicleAmount = dto.dailyRate * dto.totalDays;
+    const insuranceAmount = dto.insuranceCost || 0;
+    const extrasAmount = (dto.additionalDriverCost || 0) + (await this.calculateExtrasAmount(dto.extras));
+    const baseTotal = dto.estimatedTotal || vehicleAmount + insuranceAmount + extrasAmount;
+
+    const vatRate = await this.getVatRate(country);
+    const taxAmount = vatRate != null ? baseTotal * vatRate : null;
+    const totalWithTax = vatRate != null && taxAmount != null ? baseTotal + taxAmount : null;
+
+    return {
+      vehicleAmount,
+      extrasAmount,
+      insuranceAmount,
+      baseTotal,
+      taxRate: vatRate,
+      taxAmount,
+      totalWithTax,
+    };
+  }
+
+  private async calculateExtrasAmount(extras: any): Promise<number> {
+    if (!extras) {
+      return 0;
+    }
+
+    const config = await this.getSystemConfig();
+    const extrasConfig = Array.isArray(config?.extras) ? config.extras : [];
+    const codes = Array.isArray(extras) ? extras : [];
+
+    return codes.reduce((total, code) => {
+      const item = extrasConfig.find((extra: any) => extra.code === code);
+      if (!item || typeof item.price !== 'number') {
+        return total;
+      }
+      return total + item.price;
+    }, 0);
+  }
+
+  private async ensureExtrasAvailability(
+    extras: any,
+    stationCode: string,
+    pickupDate: Date,
+    returnDate: Date,
+  ): Promise<void> {
+    if (!extras || !Array.isArray(extras)) {
+      return;
+    }
+
+    const config = await this.getSystemConfig();
+    const extrasConfig = Array.isArray(config?.extras) ? config.extras : [];
+    const usageCounts = this.countExtras(extras);
+
+    for (const [code, count] of Object.entries(usageCounts)) {
+      const extraConfig = extrasConfig.find((extra: any) => extra.code === code);
+      if (!extraConfig || !extraConfig.stockByStation) {
+        continue;
+      }
+
+      const stock = extraConfig.stockByStation[stationCode];
+      if (stock == null) {
+        continue;
+      }
+
+      const reservedCount = await this.countExtrasReserved(code, stationCode, pickupDate, returnDate);
+      if (reservedCount + count > stock) {
+        throw new BadRequestException(
+          `Extra ${code} indisponivel para a estacao ${stationCode}. Disponivel: ${stock - reservedCount}`,
+        );
+      }
+    }
+  }
+
+  private countExtras(extras: string[]): Record<string, number> {
+    return extras.reduce<Record<string, number>>((acc, code) => {
+      acc[code] = (acc[code] || 0) + 1;
+      return acc;
+    }, {});
+  }
+
+  private async countExtrasReserved(
+    code: string,
+    stationCode: string,
+    pickupDate: Date,
+    returnDate: Date,
+  ): Promise<number> {
+    const station = await this.prisma.station.findUnique({ where: { code: stationCode } });
+    if (!station) {
+      return 0;
+    }
+
+    const [reservationCount, contractCount] = await Promise.all([
+      this.prisma.reservation.count({
+        where: {
+          pickupStationId: station.id,
+          status: { in: [ReservationStatus.PENDING, ReservationStatus.CONFIRMED, ReservationStatus.ACTIVE] },
+          pickupDate: { lte: returnDate },
+          returnDate: { gte: pickupDate },
+          extras: { contains: code },
+        },
+      }),
+      this.prisma.contract.count({
+        where: {
+          pickupStationId: station.id,
+          status: { in: [ContractStatus.DRAFT, ContractStatus.ACTIVE] },
+          pickupDate: { lte: returnDate },
+          plannedReturnDate: { gte: pickupDate },
+          extras: { contains: code },
+        },
+      }),
+    ]);
+
+    return reservationCount + contractCount;
+  }
+
+  private async getVatRate(country: string): Promise<number | null> {
+    const config = await this.getSystemConfig();
+    const vatRates = Array.isArray(config?.systemSettings?.vatRates)
+      ? config.systemSettings.vatRates
+      : [];
+    const entry = vatRates.find((rate: any) => rate.country === country);
+    return entry?.rate ?? null;
+  }
+
+  private async resolveInsuranceCost(
+    dto: CreateReservationDto,
+  ): Promise<{ insuranceCost: number; insuranceType: string | null }> {
+    if (!dto.includeInsurance) {
+      return { insuranceCost: 0, insuranceType: null };
+    }
+
+    const config = await this.getSystemConfig();
+    const insuranceTypes = Array.isArray(config?.insuranceTypes) ? config.insuranceTypes : [];
+    const defaultCode =
+      typeof config?.systemSettings?.defaultInsuranceType === 'string'
+        ? config.systemSettings.defaultInsuranceType
+        : null;
+
+    const defaultType =
+      insuranceTypes.find((item: any) => item?.isDefault) ||
+      (defaultCode ? insuranceTypes.find((item: any) => item?.code === defaultCode) : null);
+
+    const selectedType = dto.insuranceType
+      ? insuranceTypes.find((item: any) => item?.code === dto.insuranceType)
+      : defaultType;
+
+    if (dto.insuranceType && !selectedType) {
+      throw new BadRequestException('Tipo de seguro inválido');
+    }
+
+    const dailyCost =
+      typeof selectedType?.dailyCost === 'number'
+        ? selectedType.dailyCost
+        : typeof config?.systemSettings?.insuranceDailyCost === 'number'
+          ? config.systemSettings.insuranceDailyCost
+          : 0;
+
+    const defaultTotal = dailyCost * dto.totalDays;
+    const providedCost = dto.insuranceCost ?? defaultTotal;
+
+    if (providedCost < defaultTotal) {
+      throw new BadRequestException('Valor do seguro não pode ser inferior ao default');
+    }
+
+    const insuranceType = selectedType?.code || defaultType?.code || null;
+
+    return { insuranceCost: providedCost, insuranceType };
+  }
+
+  private async resolveDepositPaid(
+    baseTotal: number,
+    depositPaid?: number,
+  ): Promise<number> {
+    const config = await this.getSystemConfig();
+    const rules = config?.systemSettings?.depositRules || {};
+    const defaultPercentage =
+      typeof rules.defaultDepositPercentage === 'number'
+        ? rules.defaultDepositPercentage
+        : typeof config?.systemSettings?.defaultDepositPercentage === 'number'
+          ? config.systemSettings.defaultDepositPercentage
+          : 0;
+
+    const minDeposit = typeof rules.minDepositAmount === 'number' ? rules.minDepositAmount : null;
+    const maxDeposit = typeof rules.maxDepositAmount === 'number' ? rules.maxDepositAmount : null;
+
+    const defaultDeposit = (baseTotal * defaultPercentage) / 100;
+    let resolved = depositPaid ?? defaultDeposit;
+
+    if (depositPaid == null) {
+      if (minDeposit != null && resolved < minDeposit) {
+        resolved = minDeposit;
+      }
+      if (maxDeposit != null && resolved > maxDeposit) {
+        resolved = maxDeposit;
+      }
+      return resolved;
+    }
+
+    if (minDeposit != null && resolved < minDeposit) {
+      throw new BadRequestException('Caução abaixo do mínimo configurado');
+    }
+
+    if (maxDeposit != null && resolved > maxDeposit) {
+      throw new BadRequestException('Caução acima do máximo configurado');
+    }
+
+    return resolved;
+  }
+
+  private async getSystemConfig(): Promise<any> {
+    const configPath = path.join(process.cwd(), 'config', 'system.config.json');
+    const content = await fs.readFile(configPath, 'utf-8');
+    return JSON.parse(content);
+  }
+
   async remove(id: number, userId: number) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -768,6 +1104,7 @@ export class ReservationsService {
 
     const newClient = await this.prisma.user.create({
       data: {
+        userCode: await this.generateUserCode('CLI'),
         email: clientData.email,
         role: UserRole.CLIENT,
         status: UserStatus.ACTIVE,
@@ -795,6 +1132,26 @@ export class ReservationsService {
     });
 
     return newClient.id;
+  }
+
+  private async generateUserCode(prefix: string): Promise<string> {
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const suffix = Math.floor(Math.random() * 1e6)
+        .toString()
+        .padStart(6, '0');
+      const code = `${prefix}${suffix}`;
+
+      const existing = await this.prisma.user.findUnique({
+        where: { userCode: code },
+        select: { id: true },
+      });
+
+      if (!existing) {
+        return code;
+      }
+    }
+
+    throw new BadRequestException('Não foi possível gerar userCode');
   }
 
   private async checkVehicleConflict(

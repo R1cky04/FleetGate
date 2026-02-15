@@ -14,7 +14,16 @@ import {
 import { ContractsService } from './contracts.service';
 import { CreateContractDto } from './dto/create-contract.dto';
 import { UpdateContractDto } from './dto/update-contract.dto';
-import { CancelContractDto, CompleteContractDto, FilterContractDto } from './dto/filter-contract.dto';
+import {
+  CancelContractDto,
+  CompleteContractDto,
+  ExtendContractDto,
+  FilterContractDto,
+  PreCloseContractDto,
+  ReopenContractDto,
+} from './dto/filter-contract.dto';
+import { CurrentUser } from '../auth/current-user.decorator';
+import type { JwtUser } from '../auth/types';
 
 @Controller('contracts')
 export class ContractsController {
@@ -22,68 +31,85 @@ export class ContractsController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  create(@Body() createContractDto: CreateContractDto) {
-    // TODO: Get userId from JWT token
-    const createdById = 1; // Temporary: replace with JWT user ID
-    return this.contractsService.create(createContractDto, createdById);
+  create(
+    @Body() createContractDto: CreateContractDto,
+    @CurrentUser() user: JwtUser,
+  ) {
+    return this.contractsService.create(createContractDto, user.id);
   }
 
   @Get()
-  findAll(@Query() filterDto: FilterContractDto) {
-    // TODO: Get userId from JWT token
-    const userId = 1; // Temporary: replace with JWT user ID
-    return this.contractsService.findAll(filterDto, userId);
+  findAll(@Query() filterDto: FilterContractDto, @CurrentUser() user: JwtUser) {
+    return this.contractsService.findAll(filterDto, user.id);
   }
 
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    // TODO: Get userId from JWT token
-    const userId = 1; // Temporary: replace with JWT user ID
-    return this.contractsService.findOne(id, userId);
+  findOne(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: JwtUser) {
+    return this.contractsService.findOne(id, user.id);
   }
 
   @Patch(':id')
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateContractDto: UpdateContractDto,
+    @CurrentUser() user: JwtUser,
   ) {
-    // TODO: Get userId from JWT token
-    const userId = 1; // Temporary: replace with JWT user ID
-    return this.contractsService.update(id, updateContractDto, userId);
+    return this.contractsService.update(id, updateContractDto, user.id);
   }
 
   @Post(':id/complete')
   complete(
     @Param('id', ParseIntPipe) id: number,
     @Body() completeDto: CompleteContractDto,
+    @CurrentUser() user: JwtUser,
   ) {
-    // TODO: Get userId from JWT token
-    const userId = 1; // Temporary: replace with JWT user ID
-    return this.contractsService.completeContract(id, completeDto, userId);
+    return this.contractsService.completeContract(id, completeDto, user.id);
+  }
+
+  @Post(':id/pre-close')
+  preClose(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() preCloseDto: PreCloseContractDto,
+    @CurrentUser() user: JwtUser,
+  ) {
+    return this.contractsService.preCloseContract(id, preCloseDto, user.id);
   }
 
   @Post(':id/activate')
-  activate(@Param('id', ParseIntPipe) id: number) {
-    // TODO: Get userId from JWT token
-    const userId = 1; // Temporary: replace with JWT user ID
-    return this.contractsService.activateContract(id, userId);
+  activate(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: JwtUser) {
+    return this.contractsService.activateContract(id, user.id);
   }
 
   @Post(':id/cancel')
   cancel(
     @Param('id', ParseIntPipe) id: number,
     @Body() cancelDto: CancelContractDto,
+    @CurrentUser() user: JwtUser,
   ) {
-    // TODO: Get userId from JWT token
-    const userId = 1; // Temporary: replace with JWT user ID
-    return this.contractsService.cancelContract(id, cancelDto, userId);
+    return this.contractsService.cancelContract(id, cancelDto, user.id);
+  }
+
+  @Post(':id/extend')
+  extend(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() extendDto: ExtendContractDto,
+    @CurrentUser() user: JwtUser,
+  ) {
+    return this.contractsService.extendContract(id, extendDto, user.id);
+  }
+
+  @Post(':id/reopen')
+  reopen(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() reopenDto: ReopenContractDto,
+    @CurrentUser() user: JwtUser,
+  ) {
+    return this.contractsService.reopenContract(id, reopenDto, user.id);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  remove(@Param('id', ParseIntPipe) id: number) {
-    // TODO: Get userId from JWT token
-    const userId = 1; // Temporary: replace with JWT user ID
-    return this.contractsService.remove(id, userId);
+  remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: JwtUser) {
+    return this.contractsService.remove(id, user.id);
   }
 }

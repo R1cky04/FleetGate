@@ -13,6 +13,8 @@ import {
 import { StationsService } from './stations.service';
 import { CreateStationDto } from './dto/create-station.dto';
 import { UpdateStationDto } from './dto/update-station.dto';
+import { CurrentUser } from '../auth/current-user.decorator';
+import { JwtUser } from '../auth/types';
 
 @Controller('stations')
 export class StationsController {
@@ -20,10 +22,11 @@ export class StationsController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  create(@Body() createStationDto: CreateStationDto) {
-    // TODO: Pegar userId do JWT token
-    const createdById = 1; // Temporary: replace with JWT user ID
-    return this.stationsService.create(createStationDto, createdById);
+  create(
+    @Body() createStationDto: CreateStationDto,
+    @CurrentUser() user: JwtUser,
+  ) {
+    return this.stationsService.create(createStationDto, user.id);
   }
 
   @Get()
@@ -45,17 +48,17 @@ export class StationsController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateStationDto: UpdateStationDto) {
-    // TODO: Pegar userId do JWT token
-    const updatedById = 1; // Temporary: replace with JWT user ID
-    return this.stationsService.update(id, updateStationDto, updatedById);
+  update(
+    @Param('id') id: string,
+    @Body() updateStationDto: UpdateStationDto,
+    @CurrentUser() user: JwtUser,
+  ) {
+    return this.stationsService.update(id, updateStationDto, user.id);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  remove(@Param('id') id: string) {
-    // TODO: Pegar userId do JWT token
-    const deletedById = 1; // Temporary: replace with JWT user ID
-    return this.stationsService.remove(id, deletedById);
+  remove(@Param('id') id: string, @CurrentUser() user: JwtUser) {
+    return this.stationsService.remove(id, user.id);
   }
 }

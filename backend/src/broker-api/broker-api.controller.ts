@@ -13,7 +13,9 @@ import { ReservationsService } from '../reservations/reservations.service';
 import { CreateReservationDto } from '../reservations/dto/create-reservation.dto';
 import { CheckAvailabilityDto } from '../reservations/dto/filter-reservation.dto';
 import { CancelReservationDto } from '../reservations/dto/filter-reservation.dto';
+import { Public } from '../auth/public.decorator';
 
+@Public()
 @Controller('api/broker')
 export class BrokerApiController {
   constructor(private readonly reservationsService: ReservationsService) {}

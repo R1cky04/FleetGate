@@ -1,7 +1,13 @@
 import { IsEmail, IsEnum, IsOptional, IsString, IsBoolean, IsDateString, MinLength, Matches, IsUUID } from 'class-validator';
+import { Transform } from 'class-transformer';
 import { UserRole, UserStatus } from '../enums/user-role.enum';
 
 export class CreateUserDto {
+  @IsString()
+  @Transform(({ value }) => (typeof value === 'string' ? value.toUpperCase() : value))
+  @Matches(/^[A-Z0-9]+$/)
+  userCode: string;
+
   @IsEmail()
   @IsOptional()
   email?: string;

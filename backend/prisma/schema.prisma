@@ -116,6 +116,7 @@ enum NotificationStatus {
 
 model User {
   id                Int               @id @default(autoincrement())
+  userCode          String            @unique
   email             String?           @unique
   password          String?
   role              UserRole          @default(CLIENT)
@@ -165,6 +166,13 @@ model User {
   blacklistedBy     Int?
   clientRating      Float?            // 0-5 estrelas
   totalRentals      Int               @default(0)
+
+  // Tipo de cliente (configuravel via ficheiro)
+  customerType      String?           // Code vindo da configuracao
+  companyName       String?
+  companyTaxId      String?
+  brokerName        String?
+  brokerReference   String?
   
   // Timestamps
   createdAt         DateTime          @default(now())
@@ -385,10 +393,17 @@ model Reservation {
   totalDays         Int
   estimatedTotal    Float
   depositPaid       Float               @default(0)
+  vehicleAmount     Float?
+  extrasAmount      Float?
+  insuranceAmount   Float?
+  taxRate           Float?
+  taxAmount         Float?
+  totalWithTax      Float?
   
   // Extras
   includeInsurance  Boolean             @default(false)
   insuranceCost     Float               @default(0)
+  insuranceType     String?
   additionalDrivers Int                 @default(0)
   additionalDriverCost Float            @default(0)
   extras            String?             // JSON - Extras selecionados
@@ -450,6 +465,12 @@ model Contract {
   
   // Status
   status            ContractStatus  @default(DRAFT)
+
+  // Termos e condicoes (obrigatorio ao abrir contrato)
+  termsVersion      String?
+  termsText         String?
+  termsAcceptedAt   DateTime?
+  termsSignature    String?
   
   // Kilometragem
   kmOut             Int
@@ -468,11 +489,18 @@ model Contract {
   totalDays         Int
   subtotal          Float
   insuranceCost     Float           @default(0)
+  insuranceType     String?
   extrasCost        Float           @default(0)
   lateFee           Float           @default(0)
   damageCost        Float           @default(0)
   discountAmount    Float           @default(0)
   totalAmount       Float
+  vehicleAmount     Float?
+  extrasAmount      Float?
+  insuranceAmount   Float?
+  taxRate           Float?
+  taxAmount         Float?
+  totalWithTax      Float?
   paidAmount        Float           @default(0)
   balanceDue        Float           @default(0)
   
@@ -490,10 +518,19 @@ model Contract {
   damageOnReturn    String?         // Descrição de danos na devolução
   clientNotes       String?         // Observações visíveis para o cliente
   stationNotes      String?         // Observações internas da estação
+
+  // Pre-fecho (inspecao e assinatura)
+  preCloseAt        DateTime?
+  preCloseClientSignature String?
+  preCloseStaffSignature  String?
+  preCloseNotes     String?
   
   // Assinaturas
-  clientSignature   String?
-  staffSignature    String?
+  clientSignature   String?         // Assinatura na abertura do contrato
+  staffSignature    String?         // Assinatura do staff na abertura
+  closeClientSignature String?      // Assinatura no fecho
+  closeStaffSignature  String?      // Assinatura do staff no fecho
+  paymentConfirmedAt   DateTime?
   
   // Criação e cancelamento
   createdById       Int
@@ -764,4 +801,15 @@ model ActivityLog {
   @@index([userId])
   @@index([entityType, entityId])
   @@index([createdAt])
+}
+
+// ===== SYSTEM CONFIG =====
+
+model SystemConfig {
+  id          String   @id @default(uuid())
+  version     String?
+  updatedBy   String?
+  configJson  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

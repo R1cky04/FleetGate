@@ -233,6 +233,102 @@ export class VehiclesService {
     return vehicle;
   }
 
+  async getHistory(id: number, userId: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Usuário não encontrado');
+    }
+
+    const vehicle = await this.prisma.vehicle.findUnique({
+      where: { id },
+    });
+
+    if (!vehicle) {
+      throw new NotFoundException('Veículo não encontrado');
+    }
+
+    const stationRestrictedRoles: UserRole[] = [UserRole.FLEET, UserRole.STAFF, UserRole.ADMIN];
+    if (stationRestrictedRoles.includes(user.role as UserRole)) {
+      if (!user.stationId) {
+        throw new ForbiddenException('Usuário sem estação associada');
+      }
+      if (vehicle.stationId !== user.stationId) {
+        throw new ForbiddenException('Você só pode visualizar veículos da sua estação');
+      }
+    }
+
+    const [reservations, contracts, transfers, maintenances] = await Promise.all([
+      this.prisma.reservation.findMany({
+        where: { vehicleId: id },
+        select: {
+          id: true,
+          reservationNumber: true,
+          status: true,
+          pickupDate: true,
+          returnDate: true,
+          pickupStationId: true,
+          returnStationId: true,
+          clientId: true,
+        },
+        orderBy: { pickupDate: 'desc' },
+      }),
+      this.prisma.contract.findMany({
+        where: { vehicleId: id },
+        select: {
+          id: true,
+          contractNumber: true,
+          status: true,
+          pickupDate: true,
+          plannedReturnDate: true,
+          actualReturnDate: true,
+          pickupStationId: true,
+          returnStationId: true,
+          clientId: true,
+        },
+        orderBy: { pickupDate: 'desc' },
+      }),
+      this.prisma.vehicleTransfer.findMany({
+        where: { vehicleId: id },
+        select: {
+          id: true,
+          transferNumber: true,
+          status: true,
+          scheduledDate: true,
+          departureDate: true,
+          arrivalDate: true,
+          fromStationId: true,
+          toStationId: true,
+          driverId: true,
+        },
+        orderBy: { scheduledDate: 'desc' },
+      }),
+      this.prisma.maintenance.findMany({
+        where: { vehicleId: id },
+        select: {
+          id: true,
+          type: true,
+          status: true,
+          scheduledDate: true,
+          startedAt: true,
+          completedAt: true,
+          cost: true,
+        },
+        orderBy: { scheduledDate: 'desc' },
+      }),
+    ]);
+
+    return {
+      vehicleId: id,
+      reservations,
+      contracts,
+      transfers,
+      maintenances,
+    };
+  }
+
   async update(id: number, updateVehicleDto: UpdateVehicleDto, userId: number) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },

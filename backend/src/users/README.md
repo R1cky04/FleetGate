@@ -287,8 +287,9 @@ getProfile(@CurrentUser() user: User) {
 
 ## ✅ Validações Implementadas
 
-- ✔️ CLIENT não requer email/password
-- ✔️ STAFF, FLEET, ADMIN, IT requerem email/password
+- ✔️ Todos os users têm userCode (string em maiúsculas)
+- ✔️ CLIENT não requer password
+- ✔️ STAFF, FLEET, ADMIN, IT requerem password
 - ✔️ STAFF, FLEET, ADMIN devem ter estação associada
 - ✔️ Email único no sistema
 - ✔️ CPF/NIF únicos
@@ -301,12 +302,12 @@ getProfile(@CurrentUser() user: User) {
 
 ## 🚀 Próximos Passos
 
-- [ ] Implementar autenticação JWT
-- [ ] Adicionar módulo de autenticação (login/logout)
+- [x] Implementar autenticação JWT
+- [x] Adicionar módulo de autenticação (login/logout)
 - [ ] Implementar refresh tokens
 - [ ] Adicionar reset de senha
 - [ ] Implementar 2FA para IT e ADMIN
-- [ ] Criar testes unitários e E2E
+- [x] Criar testes unitários e E2E
 - [ ] Adicionar filtros avançados e paginação
 - [ ] Implementar exportação de relatórios
 

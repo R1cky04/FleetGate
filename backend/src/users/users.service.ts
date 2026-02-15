@@ -11,7 +11,7 @@ export class UsersService {
   constructor(private prisma: PrismaService) {}
 
   async create(createUserDto: CreateUserDto, createdBy?: number) {
-    const { password, firstName, lastName, ...rest } = createUserDto;
+    const { password, firstName, lastName, userCode, ...rest } = createUserDto;
 
     // Validações específicas por role
     await this.validateUserRole(createUserDto);
@@ -22,8 +22,21 @@ export class UsersService {
       hashedPassword = await bcrypt.hash(password, 10);
     }
 
+    if (userCode) {
+      const normalizedUserCode = userCode.toUpperCase();
+      const existing = await this.prisma.user.findUnique({
+        where: { userCode: normalizedUserCode },
+      });
+
+      if (existing && existing.id !== id) {
+        throw new BadRequestException('userCode já está em uso');
+      }
+    }
+
     // Criar fullName
     const fullName = `${firstName} ${lastName}`;
+
+    const normalizedUserCode = userCode.toUpperCase();
 
     const user = await this.prisma.user.create({
       data: {
@@ -31,6 +44,7 @@ export class UsersService {
         firstName,
         lastName,
         fullName,
+        userCode: normalizedUserCode,
         password: hashedPassword,
         createdBy,
         status: UserStatus.ACTIVE,
@@ -54,6 +68,9 @@ export class UsersService {
     role?: UserRole;
     status?: UserStatus;
     stationId?: string;
+    customerType?: string;
+    companyName?: string;
+    brokerName?: string;
     search?: string;
   }) {
     const where: any = {};
@@ -70,6 +87,18 @@ export class UsersService {
       where.stationId = filters.stationId;
     }
 
+    if (filters?.customerType) {
+      where.customerType = filters.customerType;
+    }
+
+    if (filters?.companyName) {
+      where.companyName = { contains: filters.companyName, mode: 'insensitive' };
+    }
+
+    if (filters?.brokerName) {
+      where.brokerName = { contains: filters.brokerName, mode: 'insensitive' };
+    }
+
     if (filters?.search) {
       where.OR = [
         { firstName: { contains: filters.search, mode: 'insensitive' } },
@@ -78,6 +107,9 @@ export class UsersService {
         { phone: { contains: filters.search } },
         { cpf: { contains: filters.search } },
         { nif: { contains: filters.search } },
+        { userCode: { contains: filters.search, mode: 'insensitive' } },
+        { companyName: { contains: filters.search, mode: 'insensitive' } },
+        { brokerName: { contains: filters.search, mode: 'insensitive' } },
       ];
     }
 
@@ -120,7 +152,7 @@ export class UsersService {
   async update(id: number, updateUserDto: UpdateUserDto) {
     await this.findOne(id); // Verifica se existe
 
-    const { password, firstName, lastName, ...rest } = updateUserDto;
+    const { password, firstName, lastName, userCode, ...rest } = updateUserDto;
 
     let hashedPassword: string | undefined;
     if (password) {
@@ -144,6 +176,7 @@ export class UsersService {
         ...(lastName && { lastName }),
         ...(fullName && { fullName }),
         ...(hashedPassword && { password: hashedPassword }),
+        ...(userCode && { userCode: userCode.toUpperCase() }),
       },
       include: {
         station: true,
@@ -363,16 +396,12 @@ export class UsersService {
   // ===== HELPERS =====
 
   private async validateUserRole(dto: CreateUserDto) {
-    // CLIENT não precisa de email/password
-    if (dto.role === UserRole.CLIENT) {
-      return;
+    if (!dto.userCode) {
+      throw new BadRequestException('userCode é obrigatório');
     }
 
-    // Outros roles precisam de email e password
-    if (!dto.email || !dto.password) {
-      throw new BadRequestException(
-        `${dto.role} precisa de email e password`,
-      );
+    if (!dto.password && dto.role !== UserRole.CLIENT) {
+      throw new BadRequestException(`${dto.role} precisa de password`);
     }
 
     // Staff, Admin e IT precisam de estação
@@ -382,7 +411,14 @@ export class UsersService {
       );
     }
 
-    // Verificar se email já existe
+    const normalizedUserCode = dto.userCode.toUpperCase();
+    const existingCode = await this.prisma.user.findUnique({
+      where: { userCode: normalizedUserCode },
+    });
+    if (existingCode) {
+      throw new BadRequestException('userCode já está em uso');
+    }
+
     if (dto.email) {
       const existing = await this.prisma.user.findUnique({
         where: { email: dto.email },

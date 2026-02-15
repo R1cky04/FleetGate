@@ -146,6 +146,11 @@ npm run start:dev              # Desenvolvimento com watch mode
 npm run start:prod             # Produção
 npm run build                  # Build da aplicação
 
+# Testes
+npm run test:unit              # Unit tests
+npm run test:integration       # Integration tests
+npm run test:e2e               # End-to-end tests
+
 # Prisma
 npm run prisma:generate        # Gerar Prisma Client
 npm run prisma:migrate         # Criar e aplicar migração
@@ -159,6 +164,19 @@ npm run docker:dev:down        # Parar PostgreSQL (dev)
 npm run docker:prod            # Iniciar todos os serviços
 npm run docker:prod:down       # Parar todos os serviços
 npm run docker:build           # Build dos containers
+```
+
+## 🔐 Segurança e Observabilidade
+
+- Autenticação via JWT (`/auth/login`) com `userCode` + password
+- Headers de segurança com Helmet
+- Métricas Prometheus em `/metrics`
+- Grafana + Prometheus via Docker Compose
+
+```bash
+docker compose up -d
+# Prometheus: http://localhost:9090
+# Grafana: http://localhost:3001 (admin/admin)
 ```
 
 ## 🗄️ Database

@@ -148,6 +148,7 @@ async function main() {
   // IT User
   const itUser = await prisma.user.create({
     data: {
+      userCode: 'IT0001',
       email: 'it@fleetgate.pt',
       password: hashedPassword,
       role: 'IT',
@@ -175,6 +176,7 @@ async function main() {
   // Admin User - Lisboa
   const adminLisboa = await prisma.user.create({
     data: {
+      userCode: 'ADM0001',
       email: 'admin.lisboa@fleetgate.pt',
       password: hashedPassword,
       role: 'ADMIN',
@@ -203,6 +205,7 @@ async function main() {
   // Staff User - Lisboa
   const staffLisboa = await prisma.user.create({
     data: {
+      userCode: 'STF0001',
       email: 'staff.lisboa@fleetgate.pt',
       password: hashedPassword,
       role: 'STAFF',
@@ -231,6 +234,7 @@ async function main() {
   // Staff User - Porto
   const staffPorto = await prisma.user.create({
     data: {
+      userCode: 'STF0002',
       email: 'staff.porto@fleetgate.pt',
       password: hashedPassword,
       role: 'STAFF',
@@ -259,6 +263,7 @@ async function main() {
   // Fleet User - Faro
   const fleetFaro = await prisma.user.create({
     data: {
+      userCode: 'FLT0001',
       email: 'fleet.faro@fleetgate.pt',
       password: hashedPassword,
       role: 'FLEET',
@@ -287,8 +292,10 @@ async function main() {
   // Clients
   const client1 = await prisma.user.create({
     data: {
+      userCode: 'CLI0001',
       role: 'CLIENT',
       status: 'ACTIVE',
+      customerType: 'INDIVIDUAL',
       firstName: 'António',
       lastName: 'Oliveira',
       fullName: 'António Oliveira',
@@ -317,8 +324,10 @@ async function main() {
 
   const client2 = await prisma.user.create({
     data: {
+      userCode: 'CLI0002',
       role: 'CLIENT',
       status: 'ACTIVE',
+      customerType: 'INDIVIDUAL',
       firstName: 'Sofia',
       lastName: 'Rodrigues',
       fullName: 'Sofia Rodrigues',
@@ -348,8 +357,10 @@ async function main() {
   // Cliente blacklisted
   const clientBlacklisted = await prisma.user.create({
     data: {
+      userCode: 'CLI0003',
       role: 'CLIENT',
       status: 'SUSPENDED',
+      customerType: 'INDIVIDUAL',
       firstName: 'Manuel',
       lastName: 'Problemas',
       fullName: 'Manuel Problemas',

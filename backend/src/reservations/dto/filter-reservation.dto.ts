@@ -28,6 +28,14 @@ export class FilterReservationDto {
   @IsOptional()
   source?: string; // Filter by source (broker, web, etc)
 
+  @IsDateString()
+  @IsOptional()
+  fromDate?: string;
+
+  @IsDateString()
+  @IsOptional()
+  toDate?: string;
+
   @IsInt()
   @Type(() => Number)
   @Min(1)

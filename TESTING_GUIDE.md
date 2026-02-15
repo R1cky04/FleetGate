@@ -8,11 +8,11 @@ A base de dados foi populada com dados de teste profissionais. Todos os cenário
 
 ### Staff (Acesso ao Sistema)
 ```
-IT User:          it@fleetgate.pt / Password123!
-Admin Lisboa:     admin.lisboa@fleetgate.pt / Password123!
-Staff Lisboa:     staff.lisboa@fleetgate.pt / Password123!
-Staff Porto:      staff.porto@fleetgate.pt / Password123!
-Fleet Faro:       fleet.faro@fleetgate.pt / Password123!
+IT UserCode:      IT0001 / Password123!
+Admin Lisboa:     ADM0001 / Password123!
+Staff Lisboa:     STF0001 / Password123!
+Staff Porto:      STF0002 / Password123!
+Fleet Faro:       FLT0001 / Password123!
 ```
 
 ### Clientes (Fichas no Sistema)

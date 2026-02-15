@@ -1,8 +1,18 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { promises as fs } from 'fs';
+import * as path from 'path';
 import { PrismaService } from '../prisma.service';
 import { CreateContractDto } from './dto/create-contract.dto';
 import { UpdateContractDto } from './dto/update-contract.dto';
-import { CancelContractDto, CompleteContractDto, FilterContractDto } from './dto/filter-contract.dto';
+import {
+  CancelContractDto,
+  CompleteContractDto,
+  ExtendContractDto,
+  FilterContractDto,
+  PreCloseContractDto,
+  ReopenContractDto,
+} from './dto/filter-contract.dto';
+import { DamageMapItemDto } from './dto/damage-map.dto';
 import { UserRole, ContractStatus, VehicleStatus, ReservationStatus } from '../../generated/prisma';
 
 @Injectable()
@@ -106,20 +116,42 @@ export class ContractsService {
     // Gerar número de contrato único
     const contractNumber = await this.generateContractNumber();
 
+    if (!createContractDto.termsSignature) {
+      throw new BadRequestException('Cliente deve aceitar os termos e assinar para abrir contrato');
+    }
+
+    const termsSnapshot = await this.getTermsSnapshot();
+
     // Serializar JSON fields
     const reservationExtras = reservation?.extras ? this.safeParseJson(reservation.extras) : null;
     const mergedExtras = this.mergeExtras(reservationExtras, createContractDto.extras);
     const extras = mergedExtras ? JSON.stringify(mergedExtras) : null;
     const damagesOut = createContractDto.damagesOut ? JSON.stringify(createContractDto.damagesOut) : null;
 
-    // Calcular balance due
-    const insuranceCost = createContractDto.insuranceCost ?? reservation?.insuranceCost ?? 0;
+    const { insuranceCost, insuranceType } = await this.resolveInsuranceForContract(
+      createContractDto,
+      reservation,
+    );
     const extrasCost = createContractDto.extrasCost ?? reservation?.additionalDriverCost ?? 0;
     const clientNotes = createContractDto.clientNotes ?? reservation?.clientNotes ?? null;
     const stationNotes = createContractDto.stationNotes ?? reservation?.stationNotes ?? null;
     const originalVehicleGroupId = reservation?.vehicleGroupId ?? null;
+    const termsAcceptedAt = createContractDto.termsAcceptedAt
+      ? new Date(createContractDto.termsAcceptedAt)
+      : new Date();
 
-    const balanceDue = createContractDto.totalAmount - (createContractDto.depositAmount || 0);
+    const pricing = await this.calculateContractPricing(
+      createContractDto,
+      reservation,
+      pickupStation.country,
+      insuranceCost,
+      extrasCost,
+    );
+    const depositAmount = await this.resolveDepositAmount(
+      createContractDto.totalAmount,
+      createContractDto.depositAmount,
+    );
+    const balanceDue = createContractDto.totalAmount - depositAmount;
 
     // Criar contrato
     const contract = await this.prisma.contract.create({
@@ -143,16 +175,27 @@ export class ContractsService {
         insuranceCost,
         extrasCost,
         totalAmount: createContractDto.totalAmount,
-        depositAmount: createContractDto.depositAmount,
-        paidAmount: createContractDto.depositAmount || 0,
+        vehicleAmount: pricing.vehicleAmount,
+        extrasAmount: pricing.extrasAmount,
+        insuranceAmount: pricing.insuranceAmount,
+        taxRate: pricing.taxRate,
+        taxAmount: pricing.taxAmount,
+        totalWithTax: pricing.totalWithTax,
+        depositAmount,
+        paidAmount: depositAmount,
         balanceDue,
         kmIncluded: createContractDto.kmIncluded || 0,
         extraKmCost: createContractDto.extraKmCost || 0,
         extras,
         damagesOut,
         originalVehicleGroupId,
+        insuranceType,
         clientNotes,
         stationNotes,
+        termsVersion: termsSnapshot.version,
+        termsText: termsSnapshot.text,
+        termsAcceptedAt,
+        termsSignature: createContractDto.termsSignature,
         clientSignature: createContractDto.clientSignature,
         staffSignature: createContractDto.staffSignature,
         status: ContractStatus.DRAFT,
@@ -205,7 +248,7 @@ export class ContractsService {
       throw new NotFoundException('Usuário não encontrado');
     }
 
-    const { page = 1, limit = 20, search, ...filters } = filterDto;
+    const { page = 1, limit = 20, search, fromDate, toDate, ...filters } = filterDto;
     const skip = (page - 1) * limit;
 
     // Construir condições de filtro
@@ -239,11 +282,30 @@ export class ContractsService {
       where.status = filters.status;
     }
 
+    if (fromDate || toDate) {
+      where.pickupDate = {
+        ...(fromDate && { gte: new Date(fromDate) }),
+        ...(toDate && { lte: new Date(toDate) }),
+      };
+    }
+
     if (search) {
-      where.OR = [
+      const searchOr = [
         { contractNumber: { contains: search, mode: 'insensitive' } },
         { client: { fullName: { contains: search, mode: 'insensitive' } } },
+        { client: { email: { contains: search, mode: 'insensitive' } } },
+        { client: { phone: { contains: search, mode: 'insensitive' } } },
+        { vehicle: { licensePlate: { contains: search, mode: 'insensitive' } } },
+        { pickupStation: { code: { contains: search, mode: 'insensitive' } } },
+        { returnStation: { code: { contains: search, mode: 'insensitive' } } },
       ];
+
+      if (where.OR) {
+        where.AND = [{ OR: where.OR }, { OR: searchOr }];
+        delete where.OR;
+      } else {
+        where.OR = searchOr;
+      }
     }
 
     const [contracts, total] = await Promise.all([
@@ -471,22 +533,36 @@ export class ContractsService {
       throw new BadRequestException('Apenas contratos ativos podem ser completados');
     }
 
+    if (!contract.preCloseAt || !contract.preCloseClientSignature || !contract.preCloseStaffSignature) {
+      throw new BadRequestException('Pre-fecho obrigatorio antes de fechar contrato');
+    }
+
     // Calcular km extras
     const extraKm = Math.max(0, completeDto.kmIn - contract.kmOut - contract.kmIncluded);
     const extraKmCost = extraKm * contract.extraKmCost;
+
+    const damageSource =
+      completeDto.damagesIn ?? this.safeParseJson(contract.damagesIn || '') ?? null;
+    const damageCost = completeDto.damageCost ?? (await this.calculateDamageCost(damageSource));
 
     // Calcular total final
     const finalTotal =
       contract.totalAmount +
       (completeDto.fuelCharge || 0) +
       (completeDto.lateFee || 0) +
-      (completeDto.damageCost || 0) +
+      (damageCost || 0) +
       extraKmCost;
 
     const finalBalanceDue = finalTotal - contract.paidAmount;
 
+    if (finalBalanceDue > 0 && !completeDto.confirmPaymentReceived) {
+      throw new BadRequestException('Pagamento pendente. Confirme recebimento antes de fechar');
+    }
+
     // Serializar damagesIn
-    const damagesIn = completeDto.damagesIn ? JSON.stringify(completeDto.damagesIn) : null;
+    const damagesIn = completeDto.damagesIn
+      ? JSON.stringify(completeDto.damagesIn)
+      : contract.damagesIn;
 
     // Atualizar contrato
     const updatedContract = await this.prisma.contract.update({
@@ -499,7 +575,7 @@ export class ContractsService {
         fuelLevelIn: completeDto.fuelLevelIn,
         fuelCharge: completeDto.fuelCharge || 0,
         lateFee: completeDto.lateFee || 0,
-        damageCost: completeDto.damageCost || 0,
+        damageCost: damageCost || 0,
         damagesIn,
         damageOnReturn: completeDto.damageOnReturn || contract.damageOnReturn,
         totalAmount: finalTotal,
@@ -510,6 +586,9 @@ export class ContractsService {
         completedAt: new Date(),
         clientNotes: completeDto.clientNotes || contract.clientNotes,
         stationNotes: completeDto.stationNotes || contract.stationNotes,
+        closeClientSignature: completeDto.closeClientSignature,
+        closeStaffSignature: completeDto.closeStaffSignature,
+        paymentConfirmedAt: completeDto.confirmPaymentReceived ? new Date() : contract.paymentConfirmedAt,
       },
       include: {
         client: true,
@@ -573,7 +652,11 @@ export class ContractsService {
         cancelledBy: userId,
         cancellationReason: cancelDto.reason,
         clientNotes: cancelDto.clientNotes || contract.clientNotes,
-        stationNotes: this.appendStationNote(contract.stationNotes, cancelDto.stationNotes, cancelDto.reason),
+        stationNotes: this.appendStationNote(
+          contract.stationNotes,
+          cancelDto.stationNotes,
+          `CANCELAMENTO: ${cancelDto.reason}`,
+        ),
       },
       include: {
         client: true,
@@ -592,6 +675,171 @@ export class ContractsService {
     }
 
     return updatedContract;
+  }
+
+  async preCloseContract(id: number, preCloseDto: PreCloseContractDto, userId: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Usuário não encontrado');
+    }
+
+    const allowedRoles: UserRole[] = [UserRole.STAFF, UserRole.ADMIN, UserRole.IT];
+    if (!allowedRoles.includes(user.role as UserRole)) {
+      throw new ForbiddenException('Você não tem permissão para pre-fechar contratos');
+    }
+
+    const contract = await this.prisma.contract.findUnique({
+      where: { id },
+    });
+
+    if (!contract) {
+      throw new NotFoundException('Contrato não encontrado');
+    }
+
+    if (contract.status !== ContractStatus.ACTIVE) {
+      throw new BadRequestException('Apenas contratos ativos podem ser pre-fechados');
+    }
+
+    const damagesIn = preCloseDto.damagesIn ? JSON.stringify(preCloseDto.damagesIn) : contract.damagesIn;
+
+    return this.prisma.contract.update({
+      where: { id },
+      data: {
+        damagesIn,
+        damageOnReturn: preCloseDto.damageOnReturn || contract.damageOnReturn,
+        preCloseAt: new Date(),
+        preCloseClientSignature: preCloseDto.preCloseClientSignature,
+        preCloseStaffSignature: preCloseDto.preCloseStaffSignature,
+        preCloseNotes: preCloseDto.stationNotes || contract.preCloseNotes,
+        stationNotes: this.appendStationNote(
+          contract.stationNotes,
+          preCloseDto.stationNotes,
+          'PRE-FECHO: inspecao de devolucao',
+        ),
+      },
+      include: {
+        client: true,
+        vehicle: true,
+        pickupStation: true,
+        returnStation: true,
+      },
+    });
+  }
+
+  async extendContract(id: number, extendDto: ExtendContractDto, userId: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Usuário não encontrado');
+    }
+
+    const allowedRoles: UserRole[] = [UserRole.ADMIN, UserRole.IT];
+    if (!allowedRoles.includes(user.role as UserRole)) {
+      throw new ForbiddenException('Apenas ADMIN e IT podem estender contratos');
+    }
+
+    const contract = await this.prisma.contract.findUnique({
+      where: { id },
+    });
+
+    if (!contract) {
+      throw new NotFoundException('Contrato não encontrado');
+    }
+
+    if (contract.status !== ContractStatus.ACTIVE) {
+      throw new BadRequestException('Apenas contratos ativos podem ser estendidos');
+    }
+
+    const newPlannedReturnDate = new Date(extendDto.newPlannedReturnDate);
+    if (newPlannedReturnDate <= contract.plannedReturnDate) {
+      throw new BadRequestException('Nova data deve ser posterior a data planejada atual');
+    }
+
+    const additionalDays = this.calculateAdditionalDays(contract.plannedReturnDate, newPlannedReturnDate);
+    const additionalCost = additionalDays * contract.dailyRate;
+
+    const newTotalDays = contract.totalDays + additionalDays;
+    const newSubtotal = contract.subtotal + additionalCost;
+    const newTotalAmount = contract.totalAmount + additionalCost;
+    const newBalanceDue = newTotalAmount - contract.paidAmount;
+
+    return this.prisma.contract.update({
+      where: { id },
+      data: {
+        plannedReturnDate: newPlannedReturnDate,
+        totalDays: newTotalDays,
+        subtotal: newSubtotal,
+        totalAmount: newTotalAmount,
+        balanceDue: newBalanceDue,
+        stationNotes: this.appendStationNote(
+          contract.stationNotes,
+          extendDto.stationNotes,
+          `EXTENSAO +${additionalDays} dia(s) ao mesmo preco diario`,
+        ),
+      },
+      include: {
+        client: true,
+        vehicle: true,
+        pickupStation: true,
+        returnStation: true,
+      },
+    });
+  }
+
+  async reopenContract(id: number, reopenDto: ReopenContractDto, userId: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Usuário não encontrado');
+    }
+
+    if (user.role !== UserRole.IT) {
+      throw new ForbiddenException('Apenas IT pode reabrir contratos');
+    }
+
+    const contract = await this.prisma.contract.findUnique({
+      where: { id },
+    });
+
+    if (!contract) {
+      throw new NotFoundException('Contrato não encontrado');
+    }
+
+    if (
+      contract.status !== ContractStatus.CANCELLED &&
+      contract.status !== ContractStatus.COMPLETED
+    ) {
+      throw new BadRequestException('Apenas contratos cancelados ou completados podem ser reabertos');
+    }
+
+    return this.prisma.contract.update({
+      where: { id },
+      data: {
+        status: ContractStatus.DRAFT,
+        completedAt: null,
+        cancelledAt: null,
+        cancelledBy: null,
+        cancellationReason: null,
+        stationNotes: this.appendStationNote(
+          contract.stationNotes,
+          reopenDto.stationNotes,
+          'REABERTO POR IT',
+        ),
+      },
+      include: {
+        client: true,
+        vehicle: true,
+        pickupStation: true,
+        returnStation: true,
+      },
+    });
   }
 
   async activateContract(id: number, userId: number) {
@@ -696,9 +944,221 @@ export class ContractsService {
     return newExtras ?? baseExtras;
   }
 
-  private appendStationNote(existing: string | null, incoming: string | undefined, reason: string): string {
+  private appendStationNote(existing: string | null, incoming: string | undefined, note: string): string {
     const base = incoming || existing || '';
-    const reasonNote = reason ? `[CANCELAMENTO] ${reason}` : '';
-    return [base, reasonNote].filter((value) => value.trim().length > 0).join('\n');
+    const noteText = note || '';
+    return [base, noteText].filter((value) => value.trim().length > 0).join('\n');
+  }
+
+  private calculateAdditionalDays(fromDate: Date, toDate: Date): number {
+    const diffMs = toDate.getTime() - fromDate.getTime();
+    const dayMs = 24 * 60 * 60 * 1000;
+    return Math.ceil(diffMs / dayMs);
+  }
+
+  private async getTermsSnapshot(): Promise<{ version: string | null; text: string | null }> {
+    try {
+      const configPath = path.join(process.cwd(), 'config', 'system.config.json');
+      const content = await fs.readFile(configPath, 'utf-8');
+      const config = JSON.parse(content);
+      const terms = config?.systemSettings?.termsAndConditions;
+      return {
+        version: terms?.version || null,
+        text: terms?.text || null,
+      };
+    } catch {
+      return { version: null, text: null };
+    }
+  }
+
+  private async resolveInsuranceForContract(
+    dto: CreateContractDto,
+    reservation: any | null,
+  ): Promise<{ insuranceCost: number; insuranceType: string | null }> {
+    const hasInsuranceInput =
+      dto.insuranceCost != null ||
+      dto.insuranceType != null ||
+      (reservation?.insuranceCost ?? 0) > 0;
+
+    if (!hasInsuranceInput) {
+      return { insuranceCost: 0, insuranceType: null };
+    }
+
+    const config = await this.getSystemConfig();
+    const insuranceTypes = Array.isArray(config?.insuranceTypes) ? config.insuranceTypes : [];
+    const defaultCode =
+      typeof config?.systemSettings?.defaultInsuranceType === 'string'
+        ? config.systemSettings.defaultInsuranceType
+        : null;
+
+    const defaultType =
+      insuranceTypes.find((item: any) => item?.isDefault) ||
+      (defaultCode ? insuranceTypes.find((item: any) => item?.code === defaultCode) : null);
+
+    const selectedType = dto.insuranceType
+      ? insuranceTypes.find((item: any) => item?.code === dto.insuranceType)
+      : reservation?.insuranceType
+        ? insuranceTypes.find((item: any) => item?.code === reservation.insuranceType)
+        : defaultType;
+
+    if (dto.insuranceType && !selectedType) {
+      throw new BadRequestException('Tipo de seguro inválido');
+    }
+
+    const dailyCost =
+      typeof selectedType?.dailyCost === 'number'
+        ? selectedType.dailyCost
+        : typeof config?.systemSettings?.insuranceDailyCost === 'number'
+          ? config.systemSettings.insuranceDailyCost
+          : 0;
+
+    const defaultTotal = dailyCost * dto.totalDays;
+    const baseCost = reservation?.insuranceCost ?? defaultTotal;
+    const providedCost = dto.insuranceCost ?? baseCost;
+
+    if (providedCost < defaultTotal) {
+      throw new BadRequestException('Valor do seguro não pode ser inferior ao default');
+    }
+
+    const insuranceType = selectedType?.code || reservation?.insuranceType || defaultType?.code || null;
+
+    return { insuranceCost: providedCost, insuranceType };
+  }
+
+  private async resolveDepositAmount(totalAmount: number, depositAmount?: number): Promise<number> {
+    const config = await this.getSystemConfig();
+    const rules = config?.systemSettings?.depositRules || {};
+    const defaultPercentage =
+      typeof rules.defaultDepositPercentage === 'number'
+        ? rules.defaultDepositPercentage
+        : typeof config?.systemSettings?.defaultDepositPercentage === 'number'
+          ? config.systemSettings.defaultDepositPercentage
+          : 0;
+
+    const minDeposit = typeof rules.minDepositAmount === 'number' ? rules.minDepositAmount : null;
+    const maxDeposit = typeof rules.maxDepositAmount === 'number' ? rules.maxDepositAmount : null;
+
+    const defaultDeposit = (totalAmount * defaultPercentage) / 100;
+    let resolved = depositAmount ?? defaultDeposit;
+
+    if (depositAmount == null) {
+      if (minDeposit != null && resolved < minDeposit) {
+        resolved = minDeposit;
+      }
+      if (maxDeposit != null && resolved > maxDeposit) {
+        resolved = maxDeposit;
+      }
+      return resolved;
+    }
+
+    if (minDeposit != null && resolved < minDeposit) {
+      throw new BadRequestException('Caução abaixo do mínimo configurado');
+    }
+
+    if (maxDeposit != null && resolved > maxDeposit) {
+      throw new BadRequestException('Caução acima do máximo configurado');
+    }
+
+    return resolved;
+  }
+
+  private async calculateContractPricing(
+    dto: CreateContractDto,
+    reservation: any | null,
+    country: string,
+    insuranceCost: number,
+    extrasCost: number,
+  ): Promise<{
+    vehicleAmount: number | null;
+    extrasAmount: number | null;
+    insuranceAmount: number | null;
+    taxRate: number | null;
+    taxAmount: number | null;
+    totalWithTax: number | null;
+  }> {
+    if (reservation) {
+      return {
+        vehicleAmount: reservation.vehicleAmount ?? null,
+        extrasAmount: reservation.extrasAmount ?? null,
+        insuranceAmount: reservation.insuranceAmount ?? null,
+        taxRate: reservation.taxRate ?? null,
+        taxAmount: reservation.taxAmount ?? null,
+        totalWithTax: reservation.totalWithTax ?? null,
+      };
+    }
+
+    const vehicleAmount = dto.subtotal || dto.dailyRate * dto.totalDays;
+    const insuranceAmount = insuranceCost || 0;
+    const extrasAmount = extrasCost || 0;
+    const baseTotal = dto.totalAmount || vehicleAmount + insuranceAmount + extrasAmount;
+    const vatRate = await this.getVatRate(country);
+    const taxAmount = vatRate != null ? baseTotal * vatRate : null;
+    const totalWithTax = vatRate != null && taxAmount != null ? baseTotal + taxAmount : null;
+
+    return {
+      vehicleAmount,
+      extrasAmount,
+      insuranceAmount,
+      taxRate: vatRate,
+      taxAmount,
+      totalWithTax,
+    };
+  }
+
+  private async getVatRate(country: string): Promise<number | null> {
+    try {
+      const config = await this.getSystemConfig();
+      const vatRates = Array.isArray(config?.systemSettings?.vatRates)
+        ? config.systemSettings.vatRates
+        : [];
+      const entry = vatRates.find((rate: any) => rate.country === country);
+      return entry?.rate ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  private async getSystemConfig(): Promise<any> {
+    try {
+      const configPath = path.join(process.cwd(), 'config', 'system.config.json');
+      const content = await fs.readFile(configPath, 'utf-8');
+      return JSON.parse(content);
+    } catch {
+      return {};
+    }
+  }
+
+  private async calculateDamageCost(damagesIn?: DamageMapItemDto[] | null): Promise<number> {
+    if (!Array.isArray(damagesIn) || damagesIn.length === 0) {
+      return 0;
+    }
+
+    const damageTypes = await this.getDamageTypesConfig();
+    if (!damageTypes.length) {
+      return 0;
+    }
+
+    return damagesIn.reduce((total, item) => {
+      const incoming = typeof item?.damageType === 'string' ? item.damageType.trim().toLowerCase() : '';
+      const match = damageTypes.find((type: any) => {
+        const typeName = typeof type?.name === 'string' ? type.name.trim().toLowerCase() : null;
+        const typeCode = typeof type?.code === 'string' ? type.code.trim().toLowerCase() : null;
+        return incoming === typeName || incoming === typeCode;
+      });
+
+      const cost = typeof match?.estimatedCost === 'number' ? match.estimatedCost : 0;
+      return total + cost;
+    }, 0);
+  }
+
+  private async getDamageTypesConfig(): Promise<any[]> {
+    try {
+      const configPath = path.join(process.cwd(), 'config', 'system.config.json');
+      const content = await fs.readFile(configPath, 'utf-8');
+      const config = JSON.parse(content);
+      return Array.isArray(config?.damageTypes) ? config.damageTypes : [];
+    } catch {
+      return [];
+    }
   }
 }

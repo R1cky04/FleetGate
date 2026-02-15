@@ -88,6 +88,58 @@
         }
       }
     },
+    "extras": {
+      "type": "array",
+      "description": "Configurable extras and add-ons",
+      "items": {
+        "type": "object",
+        "required": ["code", "name", "unit", "price"],
+        "properties": {
+          "code": { "type": "string", "pattern": "^[A-Z0-9_]+$" },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "unit": { "type": "string", "enum": ["per_day", "per_rental"] },
+          "price": { "type": "number", "minimum": 0 },
+          "stockByStation": {
+            "type": "object",
+            "additionalProperties": { "type": "integer", "minimum": 0 }
+          },
+          "isActive": { "type": "boolean" }
+        }
+      }
+    },
+    "customerTypes": {
+      "type": "array",
+      "description": "Customer types supported by the system",
+      "items": {
+        "type": "object",
+        "required": ["code", "name"],
+        "properties": {
+          "code": { "type": "string", "pattern": "^[A-Z0-9_]+$" },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "isActive": { "type": "boolean" }
+        }
+      }
+    },
+    "documentTypes": {
+      "type": "array",
+      "description": "Document types and validation rules",
+      "items": {
+        "type": "object",
+        "required": ["code", "name"],
+        "properties": {
+          "code": { "type": "string", "pattern": "^[A-Z0-9_]+$" },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "country": { "type": "string" },
+          "minLength": { "type": "integer", "minimum": 1 },
+          "maxLength": { "type": "integer", "minimum": 1 },
+          "pattern": { "type": "string" },
+          "isActive": { "type": "boolean" }
+        }
+      }
+    },
     "damageTypes": {
       "type": "array",
       "description": "Predefined damage types catalog",
@@ -102,6 +154,22 @@
           "estimatedCost": { "type": "number", "minimum": 0 },
           "minCost": { "type": "number", "minimum": 0 },
           "maxCost": { "type": "number", "minimum": 0 }
+        }
+      }
+    },
+    "insuranceTypes": {
+      "type": "array",
+      "description": "Insurance types and default pricing",
+      "items": {
+        "type": "object",
+        "required": ["code", "name", "dailyCost"],
+        "properties": {
+          "code": { "type": "string", "pattern": "^[A-Z0-9_]+$" },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "dailyCost": { "type": "number", "minimum": 0 },
+          "isDefault": { "type": "boolean" },
+          "isActive": { "type": "boolean" }
         }
       }
     },
@@ -123,6 +191,21 @@
         }
       }
     },
+    "paymentProfiles": {
+      "type": "array",
+      "description": "Payment methods per rent-a-car configuration",
+      "items": {
+        "type": "object",
+        "required": ["code", "name", "methods"],
+        "properties": {
+          "code": { "type": "string", "pattern": "^[A-Z0-9_]+$" },
+          "name": { "type": "string" },
+          "rentACarCode": { "type": "string" },
+          "methods": { "type": "array", "items": { "type": "string" } },
+          "isActive": { "type": "boolean" }
+        }
+      }
+    },
     "systemSettings": {
       "type": "object",
       "description": "Global system settings",
@@ -141,9 +224,61 @@
         "fuelChargeQuarter": { "type": "number", "minimum": 0 },
         "additionalDriverCostPerDay": { "type": "number", "minimum": 0 },
         "insuranceDailyCost": { "type": "number", "minimum": 0 },
+        "defaultInsuranceType": { "type": "string" },
         "gpsRentalPerDay": { "type": "number", "minimum": 0 },
         "childSeatPerDay": { "type": "number", "minimum": 0 },
         "cleaningFee": { "type": "number", "minimum": 0 },
+        "paymentMethods": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "depositRules": {
+          "type": "object",
+          "properties": {
+            "defaultDepositPercentage": { "type": "number", "minimum": 0, "maximum": 100 },
+            "minDepositAmount": { "type": "number", "minimum": 0 },
+            "maxDepositAmount": { "type": "number", "minimum": 0 }
+          }
+        },
+        "fuelLevels": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "kmPolicy": {
+          "type": "object",
+          "properties": {
+            "defaultIncludedKm": { "type": "integer", "minimum": 0 },
+            "extraKmCost": { "type": "number", "minimum": 0 }
+          }
+        },
+        "contractExtensionPolicy": {
+          "type": "object",
+          "properties": {
+            "allowSameRateExtension": { "type": "boolean" },
+            "allowedRoles": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "vatRates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["country", "rate"],
+            "properties": {
+              "country": { "type": "string" },
+              "rate": { "type": "number", "minimum": 0, "maximum": 1 },
+              "includeInPrices": { "type": "boolean" }
+            }
+          }
+        },
+        "termsAndConditions": {
+          "type": "object",
+          "properties": {
+            "version": { "type": "string" },
+            "title": { "type": "string" },
+            "text": { "type": "string" },
+            "lastUpdated": { "type": "string", "format": "date-time" }
+          }
+        },
         "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
         "locale": { "type": "string" },
         "timezone": { "type": "string" }

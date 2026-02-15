@@ -130,7 +130,7 @@ export class VehicleTransfersService {
       throw new NotFoundException('Usuário não encontrado');
     }
 
-    const { page = 1, limit = 20, fromDate, toDate, ...filters } = filterDto;
+    const { page = 1, limit = 20, fromDate, toDate, search, ...filters } = filterDto;
     const skip = (page - 1) * limit;
 
     const where: any = {};
@@ -164,6 +164,22 @@ export class VehicleTransfersService {
         ...(fromDate && { gte: new Date(fromDate) }),
         ...(toDate && { lte: new Date(toDate) }),
       };
+    }
+
+    if (search) {
+      const searchOr = [
+        { transferNumber: { contains: search, mode: 'insensitive' } },
+        { vehicle: { licensePlate: { contains: search, mode: 'insensitive' } } },
+        { driver: { fullName: { contains: search, mode: 'insensitive' } } },
+        { driver: { email: { contains: search, mode: 'insensitive' } } },
+      ];
+
+      if (where.OR) {
+        where.AND = [{ OR: where.OR }, { OR: searchOr }];
+        delete where.OR;
+      } else {
+        where.OR = searchOr;
+      }
     }
 
     const [transfers, total] = await Promise.all([

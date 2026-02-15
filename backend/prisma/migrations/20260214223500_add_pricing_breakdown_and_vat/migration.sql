@@ -1,0 +1,15 @@
+-- AlterTable
+ALTER TABLE "Contract" ADD COLUMN     "extrasAmount" DOUBLE PRECISION,
+ADD COLUMN     "insuranceAmount" DOUBLE PRECISION,
+ADD COLUMN     "taxAmount" DOUBLE PRECISION,
+ADD COLUMN     "taxRate" DOUBLE PRECISION,
+ADD COLUMN     "totalWithTax" DOUBLE PRECISION,
+ADD COLUMN     "vehicleAmount" DOUBLE PRECISION;
+
+-- AlterTable
+ALTER TABLE "Reservation" ADD COLUMN     "extrasAmount" DOUBLE PRECISION,
+ADD COLUMN     "insuranceAmount" DOUBLE PRECISION,
+ADD COLUMN     "taxAmount" DOUBLE PRECISION,
+ADD COLUMN     "taxRate" DOUBLE PRECISION,
+ADD COLUMN     "totalWithTax" DOUBLE PRECISION,
+ADD COLUMN     "vehicleAmount" DOUBLE PRECISION;

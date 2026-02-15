@@ -29,6 +29,8 @@ services:
       DATABASE_URL: postgresql://postgres:anaconda123@postgres:5432/FleetGate?schema=public
       PORT: 3000
       NODE_ENV: production
+      JWT_SECRET: change-me
+      JWT_EXPIRES_IN: 8h
     ports:
       - "3000:3000"
     depends_on:
@@ -37,8 +39,39 @@ services:
     networks:
       - fleetgate-network
 
+  prometheus:
+    image: prom/prometheus:v2.52.0
+    container_name: fleetgate-prometheus
+    restart: unless-stopped
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      - backend
+    networks:
+      - fleetgate-network
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    container_name: fleetgate-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - fleetgate-network
+
 volumes:
   postgres_data:
+    driver: local
+  grafana_data:
     driver: local
 
 networks:

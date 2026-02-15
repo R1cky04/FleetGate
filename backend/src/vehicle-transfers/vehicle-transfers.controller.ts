@@ -18,6 +18,8 @@ import {
   FilterVehicleTransferDto,
   StartVehicleTransferDto,
 } from './dto/filter-vehicle-transfer.dto';
+import { CurrentUser } from '../auth/current-user.decorator';
+import { JwtUser } from '../auth/types';
 
 @Controller('vehicle-transfers')
 export class VehicleTransfersController {
@@ -25,44 +27,53 @@ export class VehicleTransfersController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  create(@Body() createDto: CreateVehicleTransferDto) {
-    const createdById = 1;
-    return this.vehicleTransfersService.create(createDto, createdById);
+  create(@Body() createDto: CreateVehicleTransferDto, @CurrentUser() user: JwtUser) {
+    return this.vehicleTransfersService.create(createDto, user.id);
   }
 
   @Get()
-  findAll(@Query() filterDto: FilterVehicleTransferDto) {
-    const userId = 1;
-    return this.vehicleTransfersService.findAll(filterDto, userId);
+  findAll(@Query() filterDto: FilterVehicleTransferDto, @CurrentUser() user: JwtUser) {
+    return this.vehicleTransfersService.findAll(filterDto, user.id);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    const userId = 1;
-    return this.vehicleTransfersService.findOne(id, userId);
+  findOne(@Param('id') id: string, @CurrentUser() user: JwtUser) {
+    return this.vehicleTransfersService.findOne(id, user.id);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateDto: UpdateVehicleTransferDto) {
-    const userId = 1;
-    return this.vehicleTransfersService.update(id, updateDto, userId);
+  update(
+    @Param('id') id: string,
+    @Body() updateDto: UpdateVehicleTransferDto,
+    @CurrentUser() user: JwtUser,
+  ) {
+    return this.vehicleTransfersService.update(id, updateDto, user.id);
   }
 
   @Post(':id/start')
-  start(@Param('id') id: string, @Body() startDto: StartVehicleTransferDto) {
-    const userId = 1;
-    return this.vehicleTransfersService.startTransfer(id, startDto, userId);
+  start(
+    @Param('id') id: string,
+    @Body() startDto: StartVehicleTransferDto,
+    @CurrentUser() user: JwtUser,
+  ) {
+    return this.vehicleTransfersService.startTransfer(id, startDto, user.id);
   }
 
   @Post(':id/complete')
-  complete(@Param('id') id: string, @Body() completeDto: CompleteVehicleTransferDto) {
-    const userId = 1;
-    return this.vehicleTransfersService.completeTransfer(id, completeDto, userId);
+  complete(
+    @Param('id') id: string,
+    @Body() completeDto: CompleteVehicleTransferDto,
+    @CurrentUser() user: JwtUser,
+  ) {
+    return this.vehicleTransfersService.completeTransfer(id, completeDto, user.id);
   }
 
   @Post(':id/cancel')
-  cancel(@Param('id') id: string, @Body() cancelDto: CancelVehicleTransferDto) {
-    const userId = 1;
-    return this.vehicleTransfersService.cancelTransfer(id, cancelDto, userId);
+  cancel(
+    @Param('id') id: string,
+    @Body() cancelDto: CancelVehicleTransferDto,
+    @CurrentUser() user: JwtUser,
+  ) {
+    return this.vehicleTransfersService.cancelTransfer(id, cancelDto, user.id);
   }
 }
