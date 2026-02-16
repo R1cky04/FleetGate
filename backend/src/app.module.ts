@@ -6,6 +6,7 @@ import * as redisStore from 'cache-manager-redis-store';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma.module';
+import { SharedModule } from './shared/shared.module';
 import { UsersModule } from './users/users.module';
 import { StationsModule } from './stations/stations.module';
 import { VehiclesModule } from './vehicles/vehicles.module';
@@ -13,6 +14,7 @@ import { ContractsModule } from './contracts/contracts.module';
 import { ReservationsModule } from './reservations/reservations.module';
 import { BrokerApiModule } from './broker-api/broker-api.module';
 import { VehicleTransfersModule } from './vehicle-transfers/vehicle-transfers.module';
+import { VehicleRepairsModule } from './vehicle-repairs/vehicle-repairs.module';
 import { SystemConfigModule } from './system-config/system-config.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
@@ -23,6 +25,7 @@ import { PaymentsModule } from './payments/payments.module';
   imports: [
     PrismaModule,
     AuthModule,
+    SharedModule,
     CacheModule.register({
       isGlobal: true,
       store: redisStore,
@@ -52,6 +55,7 @@ import { PaymentsModule } from './payments/payments.module';
     ReservationsModule,
     BrokerApiModule,
     VehicleTransfersModule,
+    VehicleRepairsModule,
     PaymentsModule,
     SystemConfigModule,
     MetricsModule,

@@ -388,6 +388,35 @@ async function main() {
     },
   });
 
+  // Admin user for login test
+  const adminUser = await prisma.user.create({
+    data: {
+      userCode: 'ADMIN',
+      email: 'admin@fleetgate.pt',
+      password: await bcrypt.hash('admin', 10),
+      role: 'ADMIN',
+      status: 'ACTIVE',
+      firstName: 'Admin',
+      lastName: 'User',
+      fullName: 'Admin User',
+      phone: '+351910000000',
+      cpf: '00000000000',
+      nif: '000000000',
+      dateOfBirth: new Date('1990-01-01'),
+      address: 'Admin Street, 1',
+      city: 'Lisboa',
+      postalCode: '1000-001',
+      country: 'Portugal',
+      employeeNumber: 'ADMIN',
+      hireDate: new Date('2020-01-01'),
+      departmentId: departments[0].id,
+      emailVerified: true,
+      phoneVerified: true,
+      acceptedTerms: true,
+    },
+  });
+  console.log('✅ Admin user created: ADMIN / admin');
+
   // 4. Create Vehicle Groups
   console.log('🚗 Creating vehicle groups...');
   const economico = await prisma.vehicleGroup.create({

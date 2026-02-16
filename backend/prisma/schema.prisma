@@ -33,8 +33,16 @@ enum VehicleStatus {
   RESERVED
   RENTED
   MAINTENANCE
+  IN_REPAIR
   OUT_OF_SERVICE
   RETIRED
+}
+
+enum VehicleRepairStatus {
+  OPEN
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
 }
 
 enum ReservationStatus {
@@ -110,6 +118,12 @@ enum NotificationStatus {
   UNREAD
   READ
   ARCHIVED
+}
+
+enum LockStatus {
+  LOCKED
+  UNLOCKED
+  EXPIRED
 }
 
 // ===== USERS & AUTH =====
@@ -195,6 +209,9 @@ model User {
   notifications     Notification[]
   vehicleTransfersAsDriver VehicleTransfer[] @relation("TransferDriver")
   vehicleTransfersCreated  VehicleTransfer[] @relation("TransferCreatedBy")
+  repairsOpened     VehicleRepair[]  @relation("RepairOpenedBy")
+  repairsClosed     VehicleRepair[]  @relation("RepairClosedBy")
+  recordLocks       RecordLock[]
   
   @@index([email])
   @@index([cpf])
@@ -256,6 +273,9 @@ model Station {
   contractsReturn      Contract[]    @relation("ReturnStation")
   transfersFrom        VehicleTransfer[] @relation("TransferFrom")
   transfersTo          VehicleTransfer[] @relation("TransferTo")
+  repairsOpened        VehicleRepair[] @relation("RepairOpenedAt")
+  repairsClosed        VehicleRepair[] @relation("RepairClosedAt")
+  recordLocks      RecordLock[]
   
   @@index([code])
   @@index([isActive])
@@ -358,6 +378,7 @@ model Vehicle {
   reservations    Reservation[]
   contracts       Contract[]
   maintenances    Maintenance[]
+  repairs         VehicleRepair[]
   transfers       VehicleTransfer[]
   
   @@index([licensePlate])
@@ -419,6 +440,11 @@ model Reservation {
   confirmedAt       DateTime?
   cancelledAt       DateTime?
   cancelReason      String?
+  
+  // Locking
+  lockedBy          Int?                // User ID que tem lock exclusivo
+  lockedAt          DateTime?           // Quando foi feito o lock
+  lockExpiresAt     DateTime?           // Quando o lock expira (timeout)
   
   // Relações
   client            User                @relation(fields: [clientId], references: [id])
@@ -541,6 +567,11 @@ model Contract {
   cancelledBy       Int?
   cancellationReason String?
   
+  // Locking
+  lockedBy          Int?            // User ID que tem lock exclusivo
+  lockedAt          DateTime?       // Quando foi feito o lock
+  lockExpiresAt     DateTime?       // Quando o lock expira (timeout)
+  
   // Relações
   reservation       Reservation?    @relation(fields: [reservationId], references: [id])
   client            User            @relation(fields: [clientId], references: [id])
@@ -627,6 +658,68 @@ model Maintenance {
   @@index([vehicleId])
   @@index([status])
   @@index([scheduledDate])
+}
+
+// ===== VEHICLE REPAIRS (IMPROPRIEDADES) =====
+
+model VehicleRepair {
+  id              String              @id @default(uuid())
+  repairNumber    String              @unique
+  vehicleId       Int
+  
+  // Estações
+  fromStationId   String              // Estação onde foi marcado em reparo
+  closedAtStationId String?            // Estação onde foi fechado
+  
+  // Status
+  status          VehicleRepairStatus @default(OPEN)
+  
+  // Datas
+  openedAt        DateTime            @default(now())
+  startedAt       DateTime?
+  closedAt        DateTime?
+  
+  // Razão
+  reason          String              // Motivo do reparo
+  description     String?
+  
+  // Responsáveis
+  openedById      Int                 // User que abriu
+  closedById      Int?                // User que fechou
+  
+  // Observações
+  notes           String?
+  internalNotes   String?
+  
+  // Custo estimado e real
+  estimatedCost   Float               @default(0)
+  actualCost      Float?
+  
+  // Kilometragem
+  kmWhenOpened    Int
+  kmWhenClosed    Int?
+  
+  // Locks para evitar conflitos
+  lockedBy        Int?                // User que tem o lock (para fechar)
+  lockedAt        DateTime?           // Quando foi lockado
+  lockedExpires   DateTime?           // Quando o lock expira
+  
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  
+  // Relações
+  vehicle         Vehicle             @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  fromStation     Station             @relation("RepairOpenedAt", fields: [fromStationId], references: [id])
+  closedAtStation Station?            @relation("RepairClosedAt", fields: [closedAtStationId], references: [id])
+  openedBy        User                @relation("RepairOpenedBy", fields: [openedById], references: [id])
+  closedBy        User?               @relation("RepairClosedBy", fields: [closedById], references: [id])
+  
+  @@index([vehicleId])
+  @@index([status])
+  @@index([openedAt])
+  @@index([fromStationId])
+  @@index([closedAtStationId])
+  @@index([lockedExpires])
 }
 
 // ===== VEHICLE TRANSFERS (IMPROS) =====
@@ -801,6 +894,39 @@ model ActivityLog {
   @@index([userId])
   @@index([entityType, entityId])
   @@index([createdAt])
+}
+
+// ===== RECORD LOCKS (Multi-tenancy & Exclusive Editing) =====
+
+model RecordLock {
+  id              String    @id @default(uuid())
+  entityType      String    // "Contract", "Reservation", "Vehicle"
+  entityId        String    // ID do registo
+  lockedBy        Int       // User ID que tem o lock
+  stationId       String    // Station onde o lock foi feito (multi-tenancy isolation)
+  
+  // Lock control
+  acquiredAt      DateTime  @default(now())
+  expiresAt       DateTime  // Quando o lock expira
+  isActive        Boolean   @default(true)
+  
+  // Context
+  action          String    // "edit", "preview", "process"
+  ipAddress       String?
+  userAgent       String?
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  // Relações
+  user            User      @relation(fields: [lockedBy], references: [id], onDelete: Cascade)
+  station         Station   @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  
+  @@unique([entityType, entityId, stationId]) // Apenas um lock ativo por registo/estação
+  @@index([entityType, entityId])
+  @@index([lockedBy])
+  @@index([stationId])
+  @@index([expiresAt])
 }
 
 // ===== SYSTEM CONFIG =====

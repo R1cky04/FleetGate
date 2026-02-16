@@ -1,0 +1,20 @@
+{
+  "build": {
+    "productName": "FleetGate",
+    "appId": "com.fleetgate.app",
+    "files": ["dist/**/*", "dist-electron/**/*"],
+    "directories": {
+      "output": "release"
+    },
+    "win": {
+      "target": ["nsis"],
+      "certificateFile": null
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}
