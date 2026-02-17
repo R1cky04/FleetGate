@@ -11,57 +11,103 @@ export class UsersService {
   constructor(private prisma: PrismaService) {}
 
   async create(createUserDto: CreateUserDto, createdBy?: number) {
-    const { password, firstName, lastName, userCode, ...rest } = createUserDto;
+    try {
+      const { password, firstName, lastName, userCode, employeeNumber: _employeeNumber, ...rest } = createUserDto;
 
-    // Validações específicas por role
-    await this.validateUserRole(createUserDto);
+      // Validações específicas por role
+      await this.validateUserRole(createUserDto);
 
-    // Hash da senha se fornecida (não obrigatória para CLIENT)
-    let hashedPassword: string | undefined;
-    if (password) {
-      hashedPassword = await bcrypt.hash(password, 10);
-    }
+      // Hash da senha se fornecida (não obrigatória para CLIENT)
+      let hashedPassword: string | undefined;
+      if (password) {
+        hashedPassword = await bcrypt.hash(password, 10);
+      }
 
-    if (userCode) {
+      if (userCode) {
+        const normalizedUserCodeCheck = userCode.toUpperCase();
+        const existing = await this.prisma.user.findUnique({
+          where: { userCode: normalizedUserCodeCheck },
+        });
+
+        if (existing) {
+          throw new BadRequestException('userCode já está em uso');
+        }
+      }
+
+      // Criar fullName
+      const fullName = `${firstName} ${lastName}`;
       const normalizedUserCode = userCode.toUpperCase();
-      const existing = await this.prisma.user.findUnique({
-        where: { userCode: normalizedUserCode },
+      const autoEmployeeNumber = createUserDto.role !== UserRole.CLIENT
+        ? await this.getNextEmployeeNumber()
+        : undefined;
+
+      const user = await this.prisma.user.create({
+        data: {
+          ...rest,
+          firstName,
+          lastName,
+          fullName,
+          userCode: normalizedUserCode,
+          password: hashedPassword,
+          ...(autoEmployeeNumber ? { employeeNumber: autoEmployeeNumber } : {}),
+          createdBy,
+          status: UserStatus.ACTIVE,
+        },
+        include: {
+          station: true,
+          department: true,
+          permissions: true,
+        },
       });
 
-      if (existing) {
-        throw new BadRequestException('userCode já está em uso');
+      // Criar permissões padrão baseadas no role (não deve bloquear criação do usuário)
+      try {
+        await this.grantDefaultPermissions(user.id, user.role as UserRole, createdBy);
+      } catch (permissionError) {
+        console.error('Failed to grant default permissions:', permissionError);
       }
+
+      // Remover senha do retorno
+      const { password: _, ...userWithoutPassword } = user;
+
+      if (createdBy) {
+        await this.logActivity(createdBy, 'user.created', 'User', user.id.toString(), {
+          userCode: user.userCode,
+          role: user.role,
+        });
+      }
+
+      return userWithoutPassword;
+    } catch (error: any) {
+      if (error instanceof BadRequestException || error instanceof ForbiddenException || error instanceof NotFoundException) {
+        throw error;
+      }
+
+      if (error?.code === 'P2002') {
+        const target = Array.isArray(error?.meta?.target)
+          ? error.meta.target.join(', ')
+          : String(error?.meta?.target || 'campo único');
+        throw new BadRequestException(`Já existe um registo com o mesmo valor em: ${target}`);
+      }
+
+      if (error?.code === 'P2003') {
+        throw new BadRequestException('Referência inválida (estação/departamento inexistente).');
+      }
+
+      if (error?.code === 'P2000') {
+        throw new BadRequestException('Um dos campos excede o tamanho permitido.');
+      }
+
+      if (error?.code === 'P2025') {
+        throw new BadRequestException('Registo relacionado não encontrado.');
+      }
+
+      console.error('Unexpected error creating user:', error);
+      const reason = typeof error?.message === 'string' && error.message.trim().length > 0
+        ? error.message
+        : 'Erro desconhecido.'
+      throw new BadRequestException(`Não foi possível criar o utilizador: ${reason}`);
     }
-
-    // Criar fullName
-    const fullName = `${firstName} ${lastName}`;
-
-    const normalizedUserCode = userCode.toUpperCase();
-
-    const user = await this.prisma.user.create({
-      data: {
-        ...rest,
-        firstName,
-        lastName,
-        fullName,
-        userCode: normalizedUserCode,
-        password: hashedPassword,
-        createdBy,
-        status: UserStatus.ACTIVE,
-      },
-      include: {
-        station: true,
-        department: true,
-        permissions: true,
-      },
-    });
-
-    // Criar permissões padrão baseadas no role
-    await this.grantDefaultPermissions(user.id, user.role as UserRole);
-
-    // Remover senha do retorno
-    const { password: _, ...userWithoutPassword } = user;
-    return userWithoutPassword;
   }
 
   async findAll(filters?: {
@@ -187,15 +233,42 @@ export class UsersService {
       },
     });
 
+    await this.logActivity(id, 'user.updated', 'User', id.toString(), {
+      fields: Object.keys(updateUserDto || {}),
+    });
+
     const { password: _, ...userWithoutPassword } = user;
     return userWithoutPassword;
   }
 
-  async remove(id: number) {
+  async remove(id: number, removedBy: number) {
     await this.findOne(id);
 
-    // Soft delete - apenas inativa
-    return this.update(id, { status: UserStatus.INACTIVE });
+    const actor = await this.prisma.user.findUnique({ where: { id: removedBy } });
+    if (!actor) {
+      throw new NotFoundException('Usuário executor não encontrado');
+    }
+
+    if (![UserRole.IT, UserRole.ADMIN].includes(actor.role as UserRole)) {
+      throw new ForbiddenException('Apenas IT/ADMIN podem remover usuários');
+    }
+
+    try {
+      await this.prisma.user.delete({ where: { id } });
+      await this.logActivity(removedBy, 'user.deleted', 'User', id.toString(), {
+        mode: 'hard-delete',
+      });
+      return { deleted: true, mode: 'hard-delete' };
+    } catch (error: any) {
+      if (error?.code === 'P2003') {
+        await this.update(id, { status: UserStatus.INACTIVE });
+        await this.logActivity(removedBy, 'user.deleted', 'User', id.toString(), {
+          mode: 'soft-delete',
+        });
+        return { deleted: true, mode: 'soft-delete' };
+      }
+      throw error;
+    }
   }
 
   // ===== PERMISSIONS =====
@@ -429,10 +502,12 @@ export class UsersService {
     }
   }
 
-  private async grantDefaultPermissions(userId: number, role: UserRole) {
+  private async grantDefaultPermissions(userId: number, role: UserRole, grantedBy?: number) {
     const permissions = DEFAULT_PERMISSIONS[role] || [];
 
     if (permissions.length === 0) return;
+
+    const effectiveGrantedBy = grantedBy ?? userId;
 
     await Promise.all(
       permissions.map(permission =>
@@ -440,11 +515,35 @@ export class UsersService {
           data: {
             userId,
             permission,
-            grantedBy: 1, // System user ID
+            grantedBy: effectiveGrantedBy,
           },
         }),
       ),
     );
+  }
+
+  private async getNextEmployeeNumber(): Promise<string> {
+    const usersWithEmployeeNumber = await this.prisma.user.findMany({
+      where: {
+        employeeNumber: {
+          not: null,
+        },
+      },
+      select: {
+        employeeNumber: true,
+      },
+    });
+
+    let maxValue = 0;
+    for (const item of usersWithEmployeeNumber) {
+      const rawValue = (item.employeeNumber || '').trim();
+      const parsedValue = Number.parseInt(rawValue, 10);
+      if (Number.isFinite(parsedValue) && parsedValue > maxValue) {
+        maxValue = parsedValue;
+      }
+    }
+
+    return String(maxValue + 1);
   }
 
   private async logActivity(

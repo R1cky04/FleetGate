@@ -2,17 +2,15 @@
   <div class="login-container">
     <!-- BARRA INVISÍVEL PARA ARRASTAR A JANELA -->
     <div class="drag-bar">
-      <span class="window-title">FleetGate - Login</span>
+      <img src="/logo.png" alt="FleetGate" class="header-logo" />
+      <span class="window-title">FleetGate - Log In</span>
     </div>
 
     <!-- BOTÃO X -->
     <button class="close-btn" @click="closeWindow" title="Close">✕</button>
-
-    <!-- LOGO (mais para cima) -->
-    <img v-if="logoLoaded" :src="logoUrl" @error="logoError" alt="FleetGate Logo" class="logo" />
-    <div v-else class="logo-placeholder">
-      <span style="font-size: 48px; color: #0066cc;">🚗</span>
-    </div>
+    
+    <!-- LOGO GRANDE NO CENTRO -->
+    <img src="/logo.png" alt="FleetGate Logo" class="logo-center" />
     
     <!-- FORM (mais para baixo) -->
     <form class="login-form" @submit.prevent="handleLogin">
@@ -85,8 +83,6 @@ const password = ref("")
 const showPassword = ref(false)
 const loading = ref(false)
 const error = ref("")
-const logoLoaded = ref(true)
-const logoUrl = ref('./logo.png')
 
 // Clear any previous session when login page loads
 onMounted(() => {
@@ -133,11 +129,6 @@ function closeWindow() {
     window.close()
   }
 }
-
-function logoError() {
-  logoLoaded.value = false
-  console.log('Logo failed to load, using emoji fallback')
-}
 </script>
 
 <style scoped>
@@ -152,8 +143,29 @@ function logoError() {
   align-items: center;
   justify-content: center;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  box-sizing: border-box;
 }
 
+.header-logo {
+  height: 24px;
+  width: auto;
+  margin-right: 8px;
+  user-select: none;
+  pointer-events: none;
+}
+/* LOGO GRANDE NO CENTRO */
+.logo-center {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 300px;
+  height: 240px;
+  object-fit: contain;
+  z-index: 5;
+  pointer-events: none;
+  user-select: none;
+}
 /* BARRA ARRÁSTAVEL */
 .drag-bar {
   position: absolute;
@@ -171,11 +183,12 @@ function logoError() {
   border-bottom: 1px solid #e0e0e0;
 }
 
-/* TEXTO "FleetGate - Login" */
+/* TEXTO "FleetGate" */
 .window-title {
   color: #333;
   font-size: 14px;
   font-weight: 600;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   pointer-events: none;
   user-select: none;
 }
@@ -206,33 +219,17 @@ function logoError() {
   border-radius: 4px;
 }
 
-/* LOGO MAIS PARA CIMA */
-.logo, .logo-placeholder {
-  position: absolute;
-  top: -10px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 280px;
-  height: 230px;
-  object-fit: contain;
-  z-index: 5;
-  pointer-events: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* FORM MAIS PARA BAIXO */
+/* FORM CENTRADO */
 .login-form {
   position: relative;
   width: 70%;
-  max-width: 260px;
+  max-width: 280px;
   display: flex;
   flex-direction: column;
   gap: 12px;
   z-index: 20;
-  margin-top: 120px;
   -webkit-app-region: no-drag;
+  margin-top: 120px;
 }
 
 /* INPUTS */

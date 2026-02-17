@@ -10,7 +10,10 @@ Write-Host "✓ Processos anteriores parados" -ForegroundColor Green
 Write-Host "✓ Iniciando Backend API..." -ForegroundColor Green
 $backendPath = "$PSScriptRoot\backend"
 Push-Location $backendPath
-Copy-Item -Path "src/generated" -Destination "dist/src/generated" -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
+
+# Ensure dist and generated client are in sync before launching API
+npm run build
+
 Start-Job -ScriptBlock { 
     param($path)
     Set-Location $path

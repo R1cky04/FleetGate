@@ -31,9 +31,16 @@ export class StationsService {
       throw new BadRequestException('Código de estação já existe');
     }
 
-    return this.prisma.station.create({
+    const station = await this.prisma.station.create({
       data: createStationDto,
     });
+
+    await this.logActivity(createdById, 'station.created', station.id, {
+      code: station.code,
+      name: station.name,
+    });
+
+    return station;
   }
 
   async findAll(filters?: {
@@ -129,10 +136,16 @@ export class StationsService {
       }
     }
 
-    return this.prisma.station.update({
+    const station = await this.prisma.station.update({
       where: { id },
       data: updateStationDto,
     });
+
+    await this.logActivity(updatedById, 'station.updated', id, {
+      fields: Object.keys(updateStationDto || {}),
+    });
+
+    return station;
   }
 
   async remove(id: string, deletedById: number) {
@@ -180,8 +193,31 @@ export class StationsService {
       );
     }
 
-    return this.prisma.station.delete({
+    const deleted = await this.prisma.station.delete({
       where: { id },
     });
+
+    await this.logActivity(deletedById, 'station.deleted', id, {
+      code: deleted.code,
+      name: deleted.name,
+    });
+
+    return deleted;
+  }
+
+  private async logActivity(userId: number, action: string, stationId: string, details?: any) {
+    try {
+      await this.prisma.activityLog.create({
+        data: {
+          userId,
+          action,
+          entityType: 'Station',
+          entityId: stationId,
+          details: details ? JSON.stringify(details) : null,
+        },
+      });
+    } catch (error) {
+      console.error('Failed to log station activity:', error);
+    }
   }
 }

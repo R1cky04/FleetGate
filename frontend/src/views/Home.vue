@@ -2,6 +2,7 @@
   <div class="modules-container">
     <!-- DRAG BAR -->
     <div class="drag-bar">
+      <img src="/logo.png" alt="FleetGate" class="header-logo" />
       <span class="window-title">FleetGate - Modules</span>
     </div>
 
@@ -9,48 +10,48 @@
     <button class="close-btn" @click="handleExit" title="Close">✕</button>
 
     <div class="content">
-      <!-- LOGO AREA -->
-      <div class="logo-area">
-        <img src="/logo.png" alt="FleetGate Logo" class="logo-img" />
-      </div>
-
       <div class="modules-grid">
         <button class="module-card fleet-management" @click="openModule('fleet')">
-          <div class="module-name">Fleet Management</div>
         </button>
 
         <button class="module-card rent-a-car" @click="openModule('rentacar')">
-          <div class="module-name">Rent a Car</div>
         </button>
 
-        <button class="module-card" @click="openModule('maintenance')">
-          <div class="module-icon">🔧</div>
-          <div class="module-name">System Maintenance</div>
+        <button class="module-card system-maintenance" @click="openModule('maintenance')">
         </button>
 
         <button class="module-card language" @click="openModule('language')">
-          <div class="module-name">Language</div>
         </button>
 
-        <button class="module-card" @click="changeUser">
-          <div class="module-icon">👤</div>
-          <div class="module-name">Change User</div>
+        <button class="module-card change-user" @click="changeUser">
         </button>
 
         <button class="module-card logout" @click="handleExit">
-          <div class="module-icon">🚪</div>
-          <div class="module-name">Exit</div>
         </button>
-      </div>
-
-      <!-- USER INFO -->
-      <div class="user-info">
-        <span>User: {{ userName }}</span>
       </div>
     </div>
 
-    <!-- CLOCK -->
-    <div class="clock">{{ currentDate }} {{ currentTime }}</div>
+    <!-- ACCESS DENIED MODAL -->
+    <div v-if="showAccessModal" class="modal-overlay" @click="closeModal">
+      <div class="modal-content" @click.stop>
+        <div class="modal-header">
+          <h2>Access Denied</h2>
+        </div>
+        <div class="modal-body">
+          <p>Only System Administrators can access System Maintenance.</p>
+        </div>
+        <div class="modal-footer">
+          <button class="modal-btn" @click="closeModal">OK</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- FOOTER INFO -->
+    <div class="footer-info">
+      <div class="clock">{{ currentDate }} {{ currentTime }}</div>
+      <span class="user-info">User: {{ userName }}</span>
+      <span class="user-role">Role: {{ userRole }}</span>
+    </div>
   </div>
 </template>
 
@@ -62,21 +63,20 @@ import { useAuthStore } from '@/stores/auth'
 const router = useRouter()
 const authStore = useAuthStore()
 const userName = ref('Guest')
+const userRole = ref('USER')
 const currentTime = ref('')
 const currentDate = ref('')
+const showAccessModal = ref(false)
 
 onMounted(() => {
-  // Verificar se o usuário está autenticado
-  const user = localStorage.getItem('user')
-  if (!user) {
+  authStore.initAuth()
+
+  if (!authStore.isAuthenticated()) {
     router.push('/login')
   } else {
-    try {
-      const userData = JSON.parse(user)
-      userName.value = userData.email || userData.name || userData.userCode || 'User'
-    } catch (e) {
-      userName.value = user
-    }
+    const currentUser = (authStore.user as any)?.value ?? authStore.user
+    userName.value = currentUser?.userCode || currentUser?.name || currentUser?.email || 'User'
+    userRole.value = currentUser?.role || 'USER'
   }
 
   // Update clock every second
@@ -98,6 +98,20 @@ onMounted(() => {
 
 const openModule = (module: string) => {
   console.log('Opening module:', module)
+  
+  if (module === 'maintenance') {
+    // Check if user is IT role
+    if (userRole.value !== 'IT') {
+      showAccessModal.value = true
+      return
+    }
+    // Special handling for maintenance - open new window
+    if ((window as any).electronAPI?.openMaintenanceWindow) {
+      (window as any).electronAPI.openMaintenanceWindow()
+    }
+    return
+  }
+  
   // Aqui você pode abrir uma nova janela ou navegar para a rota específica
   if ((window as any).electronAPI?.openModule) {
     (window as any).electronAPI.openModule(module)
@@ -129,6 +143,10 @@ const handleExit = () => {
     router.push('/login')
   }
 }
+
+const closeModal = () => {
+  showAccessModal.value = false
+}
 </script>
 
 <style scoped>
@@ -153,14 +171,25 @@ const handleExit = () => {
   background: #f5f5f5;
   border-bottom: 1px solid #e0e0e0;
   height: 42px;
+  min-height: 42px;
+  flex: 0 0 42px;
 }
 
 .window-title {
   color: #333;
   font-size: 14px;
   font-weight: 600;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   pointer-events: none;
   user-select: none;
+}
+
+.header-logo {
+  height: 24px;
+  width: auto;
+  margin-right: 8px;
+  user-select: none;
+  pointer-events: none;
 }
 
 .close-btn {
@@ -190,25 +219,13 @@ const handleExit = () => {
 
 .content {
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: -300px 20px 40px 20px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 20px 100px 20px;
   position: relative;
-}
-
-.logo-area {
-  text-align: center;
-  margin-top: 8px;
-  margin-bottom: -34px;
-  position: relative;
-  z-index: 10;
-}
-
-.logo-img {
-  height: 120px;
-  width: auto;
-  user-select: none;
-  object-fit: contain;
 }
 
 .title {
@@ -222,32 +239,31 @@ const handleExit = () => {
 
 .modules-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  grid-template-rows: repeat(2, 1fr);
-  gap: 4px;
-  width: 95%;
-  height: 165px;
-  justify-self: center;
-  align-self: center;
-  margin: 15px auto 0 auto;
+  grid-template-columns: repeat(3, 140px);
+  grid-template-rows: repeat(2, 140px);
+  gap: 16px;
+  align-items: center;
+  justify-items: center;
+  margin-top: 80px;
 }
 
 .module-card {
-  background: rgba(255, 255, 255, 0.95);
+  background: #ffffff;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
-  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 1px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
   padding: 4px 2px;
   position: relative;
   overflow: hidden;
   z-index: 5;
+  width: 100%;
+  height: 100%;
 }
 
 .module-card::before {
@@ -257,7 +273,7 @@ const handleExit = () => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, rgba(100, 150, 255, 0.1) 0%, rgba(100, 200, 255, 0.1) 100%);
+  background: transparent;
   opacity: 0;
   transition: opacity 0.25s;
   z-index: -1;
@@ -265,117 +281,103 @@ const handleExit = () => {
 }
 
 .module-card:hover::before {
-  opacity: 1;
+  opacity: 0;
 }
 
 .module-card:hover {
-  transform: translateY(-2px) scale(1.01);
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
-  background: rgba(255, 255, 255, 1);
+  transform: translateY(-4px) scale(1.02);
+  background: #ffffff;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
 }
 
 .module-card:active {
   transform: translateY(-1px) scale(1.005);
 }
 
-.module-card.logout:hover {
-  background: rgba(255, 230, 230, 1);
-}
-
-.module-card.logout:hover::before {
-  background: linear-gradient(135deg, rgba(255, 0, 0, 0.1) 0%, rgba(200, 0, 0, 0.1) 100%);
-}
-
-.module-card.fleet-management::before {
-  background: rgba(0, 0, 0, 0.3);
-  opacity: 1;
-  z-index: -1;
-}
-
-.module-card.fleet-management:hover::before {
-  background: rgba(0, 0, 0, 0.1);
-  opacity: 1;
-}
-
-.module-card.fleet-management .module-name {
-  color: white;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
-  font-weight: 700;
-  z-index: 2;
-}
-
-.module-card.rent-a-car {
-  background-image: url('/rent-a-car.png');
-  background-size: 70%;
+.module-card.fleet-management {
+  background-image: url('/fleet-management.png');
+  background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
   position: relative;
 }
 
-.module-card.rent-a-car::before {
-  background: rgba(0, 0, 0, 0.3);
-  opacity: 1;
-  z-index: -1;
-}
-
-.module-card.rent-a-car:hover::before {
-  background: rgba(0, 0, 0, 0.1);
-  opacity: 1;
-}
-
-.module-card.rent-a-car .module-name {
-  color: white;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
-  font-weight: 700;
-  z-index: 2;
+.module-card.rent-a-car {
+  background-image: url('/ret-a-car.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  position: relative;
 }
 
 .module-card.language {
   background-image: url('/language.png');
-  background-size: 70%;
+  background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
   position: relative;
 }
 
-.module-card.language::before {
-  background: rgba(0, 0, 0, 0.3);
-  opacity: 1;
-  z-index: -1;
+.module-card.system-maintenance {
+  background-image: url('/sys-maintenance.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  position: relative;
 }
 
-.module-card.language:hover::before {
-  background: rgba(0, 0, 0, 0.1);
-  opacity: 1;
+.module-card.change-user {
+  background-image: url('/change-user.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  position: relative;
 }
 
-.module-card.language .module-name {
-  color: white;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
-  font-weight: 700;
-  z-index: 2;
+.module-card.logout {
+  background-image: url('/log-out.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  position: relative;
+}
+
+.footer-info {
+  position: fixed;
+  bottom: 8px;
+  left: 0;
+  right: 0;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 12px;
+  font-size: 14px;
+  color: #999;
+  user-select: none;
+  font-weight: 600;
 }
 
 .user-info {
-  position: fixed;
-  bottom: 8px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 12px;
-  color: #666;
+  font-size: 14px;
+  color: #999;
   user-select: none;
-  font-weight: 500;
+  font-weight: 600;
+}
+
+.user-role {
+  font-size: 14px;
+  color: #999;
+  user-select: none;
+  font-weight: 600;
 }
 
 .clock {
-  position: fixed;
-  bottom: 8px;
-  left: 12px;
-  font-size: 12px;
-  color: #666;
+  font-size: 14px;
+  color: #999;
   font-family: 'Courier New', monospace;
   user-select: none;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .module-icon {
@@ -425,4 +427,100 @@ const handleExit = () => {
 .module-card:nth-child(4) { animation-delay: 0.06s; }
 .module-card:nth-child(5) { animation-delay: 0.08s; }
 .module-card:nth-child(6) { animation-delay: 0.1s; }
+
+/* MODAL STYLES */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  -webkit-app-region: no-drag;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  max-width: 400px;
+  width: 90%;
+  overflow: hidden;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.modal-header {
+  padding: 20px;
+  border-bottom: 1px solid #e0e0e0;
+  background: #f9f9f9;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 18px;
+  color: #dc3545;
+  font-weight: 600;
+}
+
+.modal-body {
+  padding: 20px;
+  color: #666;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.modal-body p {
+  margin: 0;
+}
+
+.modal-footer {
+  padding: 15px 20px;
+  border-top: 1px solid #e0e0e0;
+  background: #f9f9f9;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.modal-btn {
+  padding: 10px 24px;
+  background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%);
+  color: #333;
+  border: 1px solid #c0c0c0;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  -webkit-app-region: no-drag;
+  font-weight: 600;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  letter-spacing: 0.3px;
+}
+
+.modal-btn:hover {
+  background: linear-gradient(135deg, #efefef 0%, #dcdcdc 100%);
+  border-color: #a0a0a0;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.modal-btn:active {
+  background: linear-gradient(135deg, #e0e0e0 0%, #d0d0d0 100%);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1), inset 0 1px 3px rgba(0, 0, 0, 0.1);
+  transform: translateY(1px);
+}
 </style>

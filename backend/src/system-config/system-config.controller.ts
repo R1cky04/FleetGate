@@ -16,4 +16,14 @@ export class SystemConfigController {
   updateConfig(@Body() config: Record<string, unknown>, @CurrentUser() user: JwtUser) {
     return this.systemConfigService.updateConfig(user.id, config);
   }
+
+  @Get('system-info')
+  getSystemInfo(@CurrentUser() user: JwtUser) {
+    return this.systemConfigService.getSystemInfo(user.id);
+  }
+
+  @Put('restart-services')
+  restartServices(@CurrentUser() user: JwtUser) {
+    return this.systemConfigService.restartServices(user.id);
+  }
 }

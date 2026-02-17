@@ -60,6 +60,92 @@ export class SystemConfigService {
     return updatedConfig;
   }
 
+  async getActivityLogs(
+    userId: number,
+    filters?: { search?: string; action?: string; limit?: number },
+  ) {
+    await this.ensureItUser(userId);
+
+    const normalizedLimit = Math.min(Math.max(filters?.limit ?? 300, 1), 1000);
+    const where: any = {};
+
+    if (filters?.action) {
+      where.action = filters.action;
+    }
+
+    if (filters?.search?.trim()) {
+      const search = filters.search.trim();
+      where.OR = [
+        { action: { contains: search, mode: 'insensitive' } },
+        { entityType: { contains: search, mode: 'insensitive' } },
+        { entityId: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    const logs = await this.prisma.activityLog.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: normalizedLimit,
+      include: {
+        user: {
+          select: {
+            id: true,
+            userCode: true,
+          },
+        },
+      },
+    });
+
+    return logs.map((entry) => ({
+      id: entry.id,
+      action: entry.action,
+      subject: `${entry.entityType}:${entry.entityId}`,
+      userId: entry.userId,
+      userCode: entry.user?.userCode ?? null,
+      timestamp: entry.createdAt,
+      details: entry.details,
+      entityType: entry.entityType,
+      entityId: entry.entityId,
+    }));
+  }
+
+  async clearActivityLogs(userId: number) {
+    await this.ensureItUser(userId);
+    const result = await this.prisma.activityLog.deleteMany();
+    return { deleted: result.count };
+  }
+
+  async getSystemInfo(userId: number) {
+    await this.ensureItUser(userId);
+
+    const [activeUsers, totalUsers, totalStations, totalRequests] = await Promise.all([
+      this.prisma.user.count({ where: { status: 'ACTIVE' } }),
+      this.prisma.user.count(),
+      this.prisma.station.count(),
+      this.prisma.activityLog.count(),
+    ]);
+
+    return {
+      activeUsers,
+      totalUsers,
+      totalStations,
+      totalRequests,
+      apiStatus: 'RUNNING',
+      databaseStatus: 'CONNECTED',
+      generatedAt: new Date().toISOString(),
+    };
+  }
+
+  async restartServices(userId: number) {
+    await this.ensureItUser(userId);
+    return {
+      status: 'accepted',
+      message: 'Restart request registered successfully',
+      requestedAt: new Date().toISOString(),
+      requestedBy: userId,
+    };
+  }
+
   private async readFileConfig(): Promise<any | null> {
     try {
       const content = await fs.readFile(this.configPath, 'utf-8');

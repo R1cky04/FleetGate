@@ -7,7 +7,21 @@ import { JwtUser } from './types';
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor() {
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        (request: any) => {
+          const rawAuth = request?.headers?.authorization;
+          if (!rawAuth) {
+            return null;
+          }
+
+          let token = String(rawAuth).trim();
+          token = token.replace(/^Bearer\s+/i, '').replace(/^"|"$/g, '').trim();
+          token = token.replace(/^Bearer\s+/i, '').replace(/^"|"$/g, '').trim();
+
+          return token || null;
+        },
+        ExtractJwt.fromAuthHeaderAsBearerToken(),
+      ]),
       ignoreExpiration: false,
       secretOrKey: process.env.JWT_SECRET || 'dev-secret',
     });

@@ -21,6 +21,12 @@ const routes = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/maintenance',
+    name: 'SystemMaintenance',
+    component: () => import('@/views/SystemMaintenance.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/',
     redirect: '/login',
   },
@@ -31,8 +37,9 @@ const router = createRouter({
   routes,
 })
 
-router.beforeEach((to, from, next) => {
+router.beforeEach((to, _from, next) => {
   const authStore = useAuthStore()
+  authStore.initAuth()
 
   if (to.meta.requiresAuth && !authStore.isAuthenticated()) {
     next('/login')
