@@ -5,5 +5,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openModulesWindow: () => ipcRenderer.send('open-modules-window'),
   returnToLogin: () => ipcRenderer.send('return-to-login'),
   openMaintenanceWindow: () => ipcRenderer.send('open-maintenance-window'),
+  openSystemManagementWindow: () => ipcRenderer.send('open-system-management-window'),
   returnToModules: () => ipcRenderer.send('return-to-modules'),
 })

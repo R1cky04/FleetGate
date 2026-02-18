@@ -1,5 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { PrismaClient } from '../../generated/prisma';
 import { promises as fs } from 'fs';
 import * as path from 'path';
 import { UserRole } from '../../generated/prisma';
@@ -70,9 +71,38 @@ export class SystemConfigService {
 
   async getTenants(userId: number) {
     await this.ensureDevUser(userId);
-    return this.prisma.tenant.findMany({
+
+    const tenants = await this.prisma.tenant.findMany({
       orderBy: { id: 'asc' },
     });
+
+    return Promise.all(
+      tenants.map(async (tenant) => {
+        const health = await this.getTenantConnectionHealth(tenant);
+        return {
+          ...tenant,
+          dbConnectionStatus: health.status,
+          dbConnectionMessage: health.message,
+          lastConnectionCheckedAt: health.checkedAt,
+        };
+      }),
+    );
+  }
+
+  async testTenantConnection(userId: number, tenantId: number) {
+    await this.ensureDevUser(userId);
+
+    const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId } });
+    if (!tenant) {
+      throw new NotFoundException('Tenant não encontrado');
+    }
+
+    const health = await this.getTenantConnectionHealth(tenant);
+    return {
+      tenantId: tenant.id,
+      tenantCode: tenant.code,
+      ...health,
+    };
   }
 
   async createTenant(userId: number, payload: Record<string, unknown>) {
@@ -173,6 +203,28 @@ export class SystemConfigService {
     const target = await this.prisma.tenant.findUnique({ where: { id: tenantId } });
     if (!target) {
       throw new NotFoundException('Tenant não encontrado');
+    }
+
+    const [usersCount, stationsCount, vehiclesCount, reservationsCount, contractsCount] = await Promise.all([
+      this.prisma.user.count({ where: { tenantId } }),
+      this.prisma.station.count({ where: { tenantId } }),
+      this.prisma.vehicle.count({ where: { tenantId } }),
+      this.prisma.reservation.count({ where: { tenantId } }),
+      this.prisma.contract.count({ where: { tenantId } }),
+    ]);
+
+    const relatedTotal = usersCount + stationsCount + vehiclesCount + reservationsCount + contractsCount;
+    if (relatedTotal > 0) {
+      throw new BadRequestException({
+        message: 'Não é possível apagar tenant com dados relacionados.',
+        relatedData: {
+          users: usersCount,
+          stations: stationsCount,
+          vehicles: vehiclesCount,
+          reservations: reservationsCount,
+          contracts: contractsCount,
+        },
+      });
     }
 
     try {
@@ -318,6 +370,87 @@ export class SystemConfigService {
 
   private async writeFileConfig(config: Record<string, unknown>) {
     await fs.writeFile(this.configPath, JSON.stringify(config, null, 2), 'utf-8');
+  }
+
+  private async getTenantConnectionHealth(tenant: {
+    dbMode: 'SHARED' | 'DEDICATED';
+    dbUrl?: string | null;
+    dbHost?: string | null;
+    dbPort?: string | null;
+    dbName?: string | null;
+    dbUser?: string | null;
+    dbPassword?: string | null;
+  }) {
+    const checkedAt = new Date().toISOString();
+
+    if (tenant.dbMode !== 'DEDICATED') {
+      return {
+        status: 'SHARED',
+        message: 'Uses shared database',
+        checkedAt,
+      };
+    }
+
+    const connectionUrl = this.resolveTenantConnectionUrl(tenant);
+    if (!connectionUrl) {
+      return {
+        status: 'NOT_CONFIGURED',
+        message: 'Dedicated database config is incomplete',
+        checkedAt,
+      };
+    }
+
+    const dedicatedClient = new PrismaClient({
+      datasources: {
+        db: {
+          url: connectionUrl,
+        },
+      },
+    });
+
+    try {
+      await dedicatedClient.$connect();
+      await dedicatedClient.$queryRaw`SELECT 1`;
+      return {
+        status: 'CONNECTED',
+        message: 'Dedicated database connection successful',
+        checkedAt,
+      };
+    } catch (error: any) {
+      return {
+        status: 'ERROR',
+        message: error?.message || 'Failed to connect dedicated database',
+        checkedAt,
+      };
+    } finally {
+      await dedicatedClient.$disconnect();
+    }
+  }
+
+  private resolveTenantConnectionUrl(tenant: {
+    dbUrl?: string | null;
+    dbHost?: string | null;
+    dbPort?: string | null;
+    dbName?: string | null;
+    dbUser?: string | null;
+    dbPassword?: string | null;
+  }): string | null {
+    const dbUrl = String(tenant.dbUrl || '').trim();
+    if (dbUrl) {
+      return dbUrl;
+    }
+
+    const dbHost = String(tenant.dbHost || '').trim();
+    const dbPort = String(tenant.dbPort || '').trim() || '5432';
+    const dbName = String(tenant.dbName || '').trim();
+    const dbUser = String(tenant.dbUser || '').trim();
+    const dbPassword = String(tenant.dbPassword || '').trim();
+
+    if (!dbHost || !dbName || !dbUser || !dbPassword) {
+      return null;
+    }
+
+    return `postgresql://${encodeURIComponent(dbUser)}:${encodeURIComponent(dbPassword)}@${dbHost}:${dbPort}/${dbName}`;
   }
 
   private async validateConfigOrThrow(config: Record<string, unknown>) {

@@ -44,7 +44,7 @@
           <h2>Access Denied</h2>
         </div>
         <div class="modal-body">
-          <p>Only DEV can access System Maintenance.</p>
+          <p>{{ accessModalMessage }}</p>
         </div>
         <div class="modal-footer">
           <button class="modal-btn" @click="closeModal">OK</button>
@@ -75,6 +75,7 @@ const tenantName = ref('N/A')
 const currentTime = ref('')
 const currentDate = ref('')
 const showAccessModal = ref(false)
+const accessModalMessage = ref('Only DEV can access System Maintenance.')
 
 onMounted(() => {
   authStore.initAuth()
@@ -111,6 +112,7 @@ const openModule = (module: string) => {
   if (module === 'maintenance') {
     // Check if user is DEV role
     if (userRole.value !== 'DEV') {
+      accessModalMessage.value = 'Only DEV can access System Maintenance.'
       showAccessModal.value = true
       return
     }
@@ -118,6 +120,22 @@ const openModule = (module: string) => {
     if ((window as any).electronAPI?.openMaintenanceWindow) {
       (window as any).electronAPI.openMaintenanceWindow()
     }
+    return
+  }
+
+  if (module === 'system-management') {
+    if (userRole.value !== 'IT' && userRole.value !== 'DEV') {
+      accessModalMessage.value = 'Only IT or DEV can access System Management.'
+      showAccessModal.value = true
+      return
+    }
+
+    if ((window as any).electronAPI?.openSystemManagementWindow) {
+      (window as any).electronAPI.openSystemManagementWindow()
+      return
+    }
+
+    router.push('/system-management')
     return
   }
   

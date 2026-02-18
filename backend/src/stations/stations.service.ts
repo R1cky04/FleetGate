@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma.service';
 import { CreateStationDto } from './dto/create-station.dto';
 import { UpdateStationDto } from './dto/update-station.dto';
 import { UserRole } from '../users/enums/user-role.enum';
+import { PrismaClient } from '../../generated/prisma';
 
 @Injectable()
 export class StationsService {
@@ -21,6 +22,8 @@ export class StationsService {
     if (creator.role !== UserRole.DEV && creator.role !== UserRole.IT) {
       throw new ForbiddenException('Apenas DEV/IT podem criar estações');
     }
+
+    await this.validateTenantForCreation((createStationDto as any).tenantId);
 
     const station = await this.prisma.station.create({
       data: createStationDto,
@@ -213,5 +216,70 @@ export class StationsService {
     } catch (error) {
       console.error('Failed to log station activity:', error);
     }
+  }
+
+  private async validateTenantForCreation(tenantId?: number) {
+    if (!tenantId) {
+      throw new BadRequestException('tenantId é obrigatório');
+    }
+
+    const tenant = await this.prisma.tenant.findUnique({ where: { id: Number(tenantId) } });
+    if (!tenant) {
+      throw new BadRequestException('Tenant não encontrado');
+    }
+
+    if (!tenant.isActive) {
+      throw new BadRequestException('Tenant está inativo');
+    }
+
+    if (tenant.dbMode === 'DEDICATED') {
+      const connectionUrl = this.resolveTenantConnectionUrl(tenant);
+      if (!connectionUrl) {
+        throw new BadRequestException('Dedicated tenant database config is incomplete');
+      }
+
+      const dedicatedClient = new PrismaClient({
+        datasources: {
+          db: {
+            url: connectionUrl,
+          },
+        },
+      });
+
+      try {
+        await dedicatedClient.$connect();
+        await dedicatedClient.$queryRaw`SELECT 1`;
+      } catch {
+        throw new BadRequestException('Dedicated tenant database is unreachable');
+      } finally {
+        await dedicatedClient.$disconnect();
+      }
+    }
+  }
+
+  private resolveTenantConnectionUrl(tenant: {
+    dbUrl?: string | null;
+    dbHost?: string | null;
+    dbPort?: string | null;
+    dbName?: string | null;
+    dbUser?: string | null;
+    dbPassword?: string | null;
+  }): string | null {
+    const dbUrl = String(tenant.dbUrl || '').trim();
+    if (dbUrl) {
+      return dbUrl;
+    }
+
+    const dbHost = String(tenant.dbHost || '').trim();
+    const dbPort = String(tenant.dbPort || '').trim() || '5432';
+    const dbName = String(tenant.dbName || '').trim();
+    const dbUser = String(tenant.dbUser || '').trim();
+    const dbPassword = String(tenant.dbPassword || '').trim();
+
+    if (!dbHost || !dbName || !dbUser || !dbPassword) {
+      return null;
+    }
+
+    return `postgresql://${encodeURIComponent(dbUser)}:${encodeURIComponent(dbPassword)}@${dbHost}:${dbPort}/${dbName}`;
   }
 }

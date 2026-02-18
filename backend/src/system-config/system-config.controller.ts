@@ -46,6 +46,11 @@ export class SystemConfigController {
     return this.systemConfigService.updateTenant(user.id, id, payload);
   }
 
+  @Post('tenants/:id/test-connection')
+  testTenantConnection(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: JwtUser) {
+    return this.systemConfigService.testTenantConnection(user.id, id);
+  }
+
   @Delete('tenants/:id')
   removeTenant(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: JwtUser) {
     return this.systemConfigService.removeTenant(user.id, id);

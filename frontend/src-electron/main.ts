@@ -1,9 +1,10 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain, screen } from 'electron'
 import path from 'path'
 
 let mainWindow: BrowserWindow | null = null
 let modulesWindow: BrowserWindow | null = null
 let maintenanceWindow: BrowserWindow | null = null
+let systemManagementWindow: BrowserWindow | null = null
 
 const devServerUrl = process.env.VITE_DEV ? 'http://localhost:5173' : null
 
@@ -121,14 +122,13 @@ function createModulesWindow() {
 function createMaintenanceWindow() {
   const appPath = getAppPath()
   const preloadPath = path.join(appPath, 'dist-electron', 'preload.js')
+  const { width, height } = screen.getPrimaryDisplay().workAreaSize
 
   console.log('Creating maintenance window...')
 
   maintenanceWindow = new BrowserWindow({
-    width: 1000,
-    height: 850,
-    maxWidth: 1000,
-    maxHeight: 1000,
+    width,
+    height,
     webPreferences: {
       preload: preloadPath,
       nodeIntegration: false,
@@ -160,6 +160,49 @@ function createMaintenanceWindow() {
 
   maintenanceWindow.on('closed', () => {
     maintenanceWindow = null
+  })
+}
+
+function createSystemManagementWindow() {
+  const appPath = getAppPath()
+  const preloadPath = path.join(appPath, 'dist-electron', 'preload.js')
+  const { width, height } = screen.getPrimaryDisplay().workAreaSize
+
+  console.log('Creating system management window...')
+
+  systemManagementWindow = new BrowserWindow({
+    width,
+    height,
+    webPreferences: {
+      preload: preloadPath,
+      nodeIntegration: false,
+      contextIsolation: true,
+    },
+    frame: false,
+    icon: path.join(appPath, 'public', 'logo.png'),
+    show: false,
+  })
+
+  systemManagementWindow.once('ready-to-show', () => {
+    console.log('System management window ready, showing now!')
+    systemManagementWindow?.show()
+  })
+
+  systemManagementWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [
+          "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' http://localhost:3000"
+        ],
+      },
+    })
+  })
+
+  loadRouteInWindow(systemManagementWindow, '/system-management')
+
+  systemManagementWindow.on('closed', () => {
+    systemManagementWindow = null
   })
 }
 
@@ -212,6 +255,11 @@ ipcMain.on('return-to-login', () => {
     maintenanceWindow = null
   }
 
+  if (systemManagementWindow) {
+    systemManagementWindow.close()
+    systemManagementWindow = null
+  }
+
   if (!mainWindow) {
     createWindow()
   } else {
@@ -234,12 +282,37 @@ ipcMain.on('open-maintenance-window', () => {
   }
 })
 
+ipcMain.on('open-system-management-window', () => {
+  console.log('Opening system management window...')
+
+  if (modulesWindow) {
+    modulesWindow.close()
+    modulesWindow = null
+  }
+
+  if (maintenanceWindow) {
+    maintenanceWindow.close()
+    maintenanceWindow = null
+  }
+
+  if (!systemManagementWindow) {
+    createSystemManagementWindow()
+  } else {
+    systemManagementWindow.focus()
+  }
+})
+
 ipcMain.on('return-to-modules', () => {
   console.log('Returning to modules...')
 
   if (maintenanceWindow) {
     maintenanceWindow.close()
     maintenanceWindow = null
+  }
+
+  if (systemManagementWindow) {
+    systemManagementWindow.close()
+    systemManagementWindow = null
   }
 
   if (!modulesWindow) {

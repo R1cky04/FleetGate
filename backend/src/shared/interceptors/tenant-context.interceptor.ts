@@ -8,10 +8,15 @@ export class TenantContextInterceptor implements NestInterceptor {
   constructor(private readonly tenantContext: TenantContextService) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
-    const request = context.switchToHttp().getRequest<{ user?: JwtUser }>();
+    const request = context.switchToHttp().getRequest<{ user?: JwtUser; headers?: Record<string, string | string[] | undefined> }>();
+    const requestedTenantScope = String(request.headers?.['x-tenant-scope'] || '').toLowerCase();
+    const shouldForceSelfTenantScope = requestedTenantScope === 'self';
+    const userTenantId = typeof request.user?.tenantId === 'number' ? request.user.tenantId : null;
+
     const tenantId = request.user?.role === 'DEV'
-      ? null
-      : (typeof request.user?.tenantId === 'number' ? request.user.tenantId : null);
+      ? (shouldForceSelfTenantScope ? userTenantId : null)
+      : userTenantId;
+
     return this.tenantContext.run(tenantId, () => next.handle());
   }
 }

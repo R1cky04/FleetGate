@@ -5,6 +5,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { GrantPermissionDto, MoveStaffDto, RevokePermissionDto } from './dto/user-permissions.dto';
 import { UserRole, UserStatus, DEFAULT_PERMISSIONS, Permission } from './enums/user-role.enum';
 import * as bcrypt from 'bcrypt';
+import { PrismaClient } from '../../generated/prisma';
 
 @Injectable()
 export class UsersService {
@@ -33,6 +34,8 @@ export class UsersService {
     try {
       const dto = createUserDto as any;
       const { password, firstName, lastName, userCode } = createUserDto;
+
+      await this.validateTenantForCreation(dto.tenantId);
 
       // Validações específicas por role
       await this.validateUserRole(createUserDto);
@@ -394,6 +397,76 @@ export class UsersService {
     return this.mapUserForResponse(refreshedUser || user);
   }
 
+  async resetPassword(userId: number, newPassword: string, changedBy: number) {
+    const actor = await this.prisma.user.findUnique({ where: { id: changedBy } });
+    if (!actor) {
+      throw new NotFoundException('Usuário executor não encontrado');
+    }
+
+    if (![UserRole.DEV, UserRole.IT, UserRole.ADMIN].includes(actor.role as UserRole)) {
+      throw new ForbiddenException('Apenas DEV/IT/ADMIN podem redefinir password');
+    }
+
+    if (!newPassword || newPassword.trim().length < 8) {
+      throw new BadRequestException('A nova password deve ter pelo menos 8 caracteres');
+    }
+
+    const target = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!target) {
+      throw new NotFoundException(`Usuário com ID ${userId} não encontrado`);
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword.trim(), 10);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        password: hashedPassword,
+        status: UserStatus.ACTIVE,
+      },
+    });
+
+    await this.logActivity(changedBy, 'user.password_reset', 'User', String(userId), {
+      targetUserCode: target.userCode,
+    });
+
+    return { success: true };
+  }
+
+  async forceLogout(userId: number, changedBy: number) {
+    const actor = await this.prisma.user.findUnique({ where: { id: changedBy } });
+    if (!actor) {
+      throw new NotFoundException('Usuário executor não encontrado');
+    }
+
+    if (![UserRole.DEV, UserRole.IT, UserRole.ADMIN].includes(actor.role as UserRole)) {
+      throw new ForbiddenException('Apenas DEV/IT/ADMIN podem forçar logout');
+    }
+
+    if (userId === changedBy) {
+      throw new BadRequestException('Não pode forçar logout da sua própria conta');
+    }
+
+    const target = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!target) {
+      throw new NotFoundException(`Usuário com ID ${userId} não encontrado`);
+    }
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { status: UserStatus.SUSPENDED },
+    });
+
+    await this.logActivity(changedBy, 'user.force_logout', 'User', String(userId), {
+      targetUserCode: target.userCode,
+      resultingStatus: UserStatus.SUSPENDED,
+    });
+
+    return {
+      success: true,
+      message: 'User session invalidated by suspending account. Activate again to restore access.',
+    };
+  }
+
   async remove(id: number, removedBy: number) {
     await this.findOne(id);
 
@@ -678,6 +751,71 @@ export class UsersService {
         throw new BadRequestException('Email já está em uso');
       }
     }
+  }
+
+  private async validateTenantForCreation(tenantId?: number) {
+    if (!tenantId) {
+      throw new BadRequestException('tenantId é obrigatório');
+    }
+
+    const tenant = await this.prisma.tenant.findUnique({ where: { id: Number(tenantId) } });
+    if (!tenant) {
+      throw new BadRequestException('Tenant não encontrado');
+    }
+
+    if (!tenant.isActive) {
+      throw new BadRequestException('Tenant está inativo');
+    }
+
+    if (tenant.dbMode === 'DEDICATED') {
+      const connectionUrl = this.resolveTenantConnectionUrl(tenant);
+      if (!connectionUrl) {
+        throw new BadRequestException('Dedicated tenant database config is incomplete');
+      }
+
+      const dedicatedClient = new PrismaClient({
+        datasources: {
+          db: {
+            url: connectionUrl,
+          },
+        },
+      });
+
+      try {
+        await dedicatedClient.$connect();
+        await dedicatedClient.$queryRaw`SELECT 1`;
+      } catch {
+        throw new BadRequestException('Dedicated tenant database is unreachable');
+      } finally {
+        await dedicatedClient.$disconnect();
+      }
+    }
+  }
+
+  private resolveTenantConnectionUrl(tenant: {
+    dbUrl?: string | null;
+    dbHost?: string | null;
+    dbPort?: string | null;
+    dbName?: string | null;
+    dbUser?: string | null;
+    dbPassword?: string | null;
+  }): string | null {
+    const dbUrl = String(tenant.dbUrl || '').trim();
+    if (dbUrl) {
+      return dbUrl;
+    }
+
+    const dbHost = String(tenant.dbHost || '').trim();
+    const dbPort = String(tenant.dbPort || '').trim() || '5432';
+    const dbName = String(tenant.dbName || '').trim();
+    const dbUser = String(tenant.dbUser || '').trim();
+    const dbPassword = String(tenant.dbPassword || '').trim();
+
+    if (!dbHost || !dbName || !dbUser || !dbPassword) {
+      return null;
+    }
+
+    return `postgresql://${encodeURIComponent(dbUser)}:${encodeURIComponent(dbPassword)}@${dbHost}:${dbPort}/${dbName}`;
   }
 
   private async grantDefaultPermissions(userId: number, role: UserRole, grantedBy?: number) {

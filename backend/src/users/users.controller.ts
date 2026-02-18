@@ -61,6 +61,23 @@ export class UsersController {
     return this.usersService.update(id, updateUserDto);
   }
 
+  @Post(':id/reset-password')
+  resetPassword(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() payload: { newPassword: string },
+    @CurrentUser() user: JwtUser,
+  ) {
+    return this.usersService.resetPassword(id, payload?.newPassword, user.id);
+  }
+
+  @Post(':id/force-logout')
+  forceLogout(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: JwtUser,
+  ) {
+    return this.usersService.forceLogout(id, user.id);
+  }
+
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: JwtUser) {

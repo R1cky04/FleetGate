@@ -27,6 +27,12 @@ const routes = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/system-management',
+    name: 'SystemManagement',
+    component: () => import('@/views/SystemManagement.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/',
     redirect: '/login',
   },

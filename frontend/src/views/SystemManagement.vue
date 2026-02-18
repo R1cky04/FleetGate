@@ -2,7 +2,7 @@
   <div class="maintenance-container">
     <!-- DRAG BAR -->
     <div class="drag-bar">
-      <span class="window-title">FleetGate - System Maintenance</span>
+      <span class="window-title">FleetGate - System Management</span>
     </div>
 
     <!-- CLOSE BUTTON -->
@@ -14,7 +14,7 @@
         <div class="denied-icon">🔒</div>
         <h2>Access Denied</h2>
         <p>You do not have permission to access System Maintenance.</p>
-        <p>Only DEV can access this section.</p>
+        <p>Only IT or DEV can access this section.</p>
         <button @click="goBack" class="btn-back">Go Back</button>
       </div>
     </div>
@@ -1068,10 +1068,11 @@ import axios from 'axios'
 const router = useRouter()
 const authStore = useAuthStore()
 
-const activeTab = ref('config')
+const activeTab = ref('users')
 const isDevAdmin = ref(false)
 const isLoading = ref(false)
 const APIUrl = 'http://localhost:3000'
+const currentTenantId = ref<number | null>(null)
 
 const getAuthToken = () => {
   const storeToken =
@@ -1093,7 +1094,7 @@ const getAuthToken = () => {
 
 const authHeaders = () => {
   const token = getAuthToken()
-  return token ? { Authorization: `Bearer ${token}` } : {}
+  return token ? { Authorization: `Bearer ${token}`, 'X-Tenant-Scope': 'self' } : { 'X-Tenant-Scope': 'self' }
 }
 
 const getCurrentUserId = () => {
@@ -1104,12 +1105,8 @@ const getCurrentUserId = () => {
 const isCurrentUser = (id: number) => Number(id) === getCurrentUserId()
 
 const tabs = [
-  { id: 'config', name: 'Configuration' },
-  { id: 'tenants', name: 'Tenants' },
   { id: 'users', name: 'Users' },
   { id: 'stations', name: 'Stations' },
-  { id: 'logs', name: 'Activity Logs' },
-  { id: 'system', name: 'System Info' },
 ]
 
 // Configuration
@@ -1393,7 +1390,7 @@ const filteredStaffUsers = computed(() => {
 
 const createUserStations = computed(() => {
   const tenantId = Number(createUserForm.value.tenantId)
-  if (!tenantId) return []
+  if (!tenantId) return stations.value
   return stations.value.filter((station) => Number(station.tenantId) === tenantId)
 })
 
@@ -1614,15 +1611,25 @@ onMounted(async () => {
   }
 
   const user = authStore.user
-  isDevAdmin.value = user?.role === 'DEV'
+  isDevAdmin.value = user?.role === 'IT' || user?.role === 'DEV'
+  currentTenantId.value = Number(user?.tenantId || 0) || null
+
+  if (currentTenantId.value) {
+    const currentTenantCode = user?.tenantCode || user?.companyCode || 'TENANT'
+    const currentTenantName = user?.tenantName || user?.companyName || 'Current Tenant'
+    tenants.value = [{
+      id: currentTenantId.value,
+      code: currentTenantCode,
+      name: currentTenantName,
+      dbMode: 'SHARED',
+      isActive: true,
+      dbConnectionStatus: 'CONNECTED',
+    }]
+  }
 
   if (isDevAdmin.value) {
-    await loadConfig()
-    await loadTenants()
     await loadUsers()
     await loadStations()
-    await loadActivityLogs()
-    await loadSystemInfo()
   }
 
   isLoading.value = false
@@ -1635,7 +1642,10 @@ const loadUsers = async () => {
     const response = await axios.get(`${APIUrl}/users`, {
       headers: authHeaders()
     })
-    users.value = response.data || []
+    const loadedUsers = Array.isArray(response.data) ? response.data : []
+    users.value = currentTenantId.value
+      ? loadedUsers.filter((user: any) => Number(user.tenantId) === Number(currentTenantId.value))
+      : loadedUsers
   } catch (error) {
     console.error('Error loading users:', error)
   }
@@ -1658,7 +1668,10 @@ const loadStations = async () => {
     const response = await axios.get(`${APIUrl}/stations`, {
       headers: authHeaders()
     })
-    stations.value = response.data || []
+    const loadedStations = Array.isArray(response.data) ? response.data : []
+    stations.value = currentTenantId.value
+      ? loadedStations.filter((station: any) => Number(station.tenantId) === Number(currentTenantId.value))
+      : loadedStations
   } catch (error) {
     console.error('Error loading stations:', error)
   }
@@ -1900,6 +1913,9 @@ const testTenantConnection = async (tenant: any) => {
 
 const resetCreateUserForm = () => {
   createUserForm.value = createEmptyUserForm()
+  if (currentTenantId.value) {
+    createUserForm.value.tenantId = String(currentTenantId.value)
+  }
   userFormError.value = ''
   userFormSuccess.value = ''
 }
@@ -2125,6 +2141,9 @@ const cancelUserEdit = () => {
 
 const resetCreateStationForm = () => {
   createStationForm.value = createEmptyStationForm()
+  if (currentTenantId.value) {
+    createStationForm.value.tenantId = String(currentTenantId.value)
+  }
   stationFormError.value = ''
   stationFormSuccess.value = ''
 }
