@@ -192,7 +192,7 @@ export class ReservationsService {
 
     await this.ensureExtrasAvailability(
       createReservationDto.extras,
-      pickupStation.code,
+      createReservationDto.pickupStationId,
       new Date(createReservationDto.pickupDate),
       new Date(createReservationDto.returnDate),
     );
@@ -287,14 +287,18 @@ export class ReservationsService {
     }
 
     if (search) {
+      const parsedStationId = Number(search);
       const searchOr = [
         { reservationNumber: { contains: search, mode: 'insensitive' } },
         { client: { fullName: { contains: search, mode: 'insensitive' } } },
         { client: { email: { contains: search, mode: 'insensitive' } } },
         { client: { phone: { contains: search, mode: 'insensitive' } } },
         { vehicle: { licensePlate: { contains: search, mode: 'insensitive' } } },
-        { pickupStation: { code: { contains: search, mode: 'insensitive' } } },
-        { returnStation: { code: { contains: search, mode: 'insensitive' } } },
+        { pickupStation: { name: { contains: search, mode: 'insensitive' } } },
+        { returnStation: { name: { contains: search, mode: 'insensitive' } } },
+        ...(!Number.isNaN(parsedStationId)
+          ? [{ pickupStationId: parsedStationId }, { returnStationId: parsedStationId }]
+          : []),
       ];
 
       if (where.OR) {
@@ -333,7 +337,6 @@ export class ReservationsService {
           pickupStation: {
             select: {
               id: true,
-              code: true,
               name: true,
               city: true,
             },
@@ -341,7 +344,6 @@ export class ReservationsService {
           returnStation: {
             select: {
               id: true,
-              code: true,
               name: true,
               city: true,
             },
@@ -872,7 +874,7 @@ export class ReservationsService {
 
   private async ensureExtrasAvailability(
     extras: any,
-    stationCode: string,
+    stationId: number,
     pickupDate: Date,
     returnDate: Date,
   ): Promise<void> {
@@ -890,15 +892,15 @@ export class ReservationsService {
         continue;
       }
 
-      const stock = extraConfig.stockByStation[stationCode];
+      const stock = extraConfig.stockByStation[String(stationId)];
       if (stock == null) {
         continue;
       }
 
-      const reservedCount = await this.countExtrasReserved(code, stationCode, pickupDate, returnDate);
+      const reservedCount = await this.countExtrasReserved(code, stationId, pickupDate, returnDate);
       if (reservedCount + count > stock) {
         throw new BadRequestException(
-          `Extra ${code} indisponivel para a estacao ${stationCode}. Disponivel: ${stock - reservedCount}`,
+          `Extra ${code} indisponivel para a estacao ${stationId}. Disponivel: ${stock - reservedCount}`,
         );
       }
     }
@@ -913,19 +915,14 @@ export class ReservationsService {
 
   private async countExtrasReserved(
     code: string,
-    stationCode: string,
+    stationId: number,
     pickupDate: Date,
     returnDate: Date,
   ): Promise<number> {
-    const station = await this.prisma.station.findUnique({ where: { code: stationCode } });
-    if (!station) {
-      return 0;
-    }
-
     const [reservationCount, contractCount] = await Promise.all([
       this.prisma.reservation.count({
         where: {
-          pickupStationId: station.id,
+          pickupStationId: stationId,
           status: { in: [ReservationStatus.PENDING, ReservationStatus.CONFIRMED, ReservationStatus.ACTIVE] },
           pickupDate: { lte: returnDate },
           returnDate: { gte: pickupDate },
@@ -934,7 +931,7 @@ export class ReservationsService {
       }),
       this.prisma.contract.count({
         where: {
-          pickupStationId: station.id,
+          pickupStationId: stationId,
           status: { in: [ContractStatus.DRAFT, ContractStatus.ACTIVE] },
           pickupDate: { lte: returnDate },
           plannedReturnDate: { gte: pickupDate },

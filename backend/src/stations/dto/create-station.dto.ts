@@ -3,26 +3,27 @@ import { IsBoolean, IsEmail, IsLatitude, IsLongitude, IsOptional, IsString, MinL
 export class CreateStationDto {
   @IsString()
   @MinLength(3)
-  code: string;
-
-  @IsString()
-  @MinLength(3)
   name: string;
 
+  @IsOptional()
   @IsEmail()
-  email: string;
+  email?: string;
 
+  @IsOptional()
   @IsString()
-  phone: string;
+  phone?: string;
 
+  @IsOptional()
   @IsString()
-  address: string;
+  address?: string;
 
+  @IsOptional()
   @IsString()
-  city: string;
+  city?: string;
 
+  @IsOptional()
   @IsString()
-  postalCode: string;
+  postalCode?: string;
 
   @IsString()
   @IsOptional()

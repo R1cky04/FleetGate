@@ -105,11 +105,13 @@ export class CreateReservationDto {
   @IsOptional()
   vehicleGroupId?: string; // Or just a vehicle group
 
-  @IsString()
-  pickupStationId: string;
+  @IsInt()
+  @Type(() => Number)
+  pickupStationId: number;
 
-  @IsString()
-  returnStationId: string;
+  @IsInt()
+  @Type(() => Number)
+  returnStationId: number;
 
   @IsDateString()
   pickupDate: string;

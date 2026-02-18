@@ -6,7 +6,7 @@ export interface LockRequest {
   entityType: 'Contract' | 'Reservation' | 'Vehicle';
   entityId: string | number;
   userId: number;
-  stationId: string;
+  stationId: number;
   action?: 'edit' | 'preview' | 'process';
   ipAddress?: string;
   userAgent?: string;
@@ -111,7 +111,7 @@ export class RecordLockService {
   async releaseLock(
     entityType: string,
     entityId: string | number,
-    stationId: string,
+    stationId: number,
     userId: number
   ): Promise<void> {
     const lock = await this.prisma.recordLock.findUnique({
@@ -145,7 +145,7 @@ export class RecordLockService {
   async getLockInfo(
     entityType: string,
     entityId: string | number,
-    stationId: string
+    stationId: number
   ): Promise<LockInfo> {
     const lock = await this.prisma.recordLock.findUnique({
       where: {
@@ -194,7 +194,7 @@ export class RecordLockService {
   async renewLock(
     entityType: string,
     entityId: string | number,
-    stationId: string,
+    stationId: number,
     userId: number,
     durationSeconds?: number
   ): Promise<RecordLock> {
@@ -257,7 +257,7 @@ export class RecordLockService {
    */
   async validateStationAccess(
     userId: number,
-    stationId: string
+    stationId: number
   ): Promise<boolean> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },

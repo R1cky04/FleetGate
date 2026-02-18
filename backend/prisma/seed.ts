@@ -51,8 +51,7 @@ async function main() {
   console.log('🏢 Creating stations...');
   const lisbon = await prisma.station.create({
     data: {
-      code: 'LIS-AIRPORT',
-      name: 'Aeroporto de Lisboa',
+      name: 'Lisboa',
       email: 'lisboa@fleetgate.pt',
       phone: '+351210000001',
       address: 'Aeroporto Humberto Delgado',
@@ -69,8 +68,7 @@ async function main() {
 
   const porto = await prisma.station.create({
     data: {
-      code: 'OPO-AIRPORT',
-      name: 'Aeroporto do Porto',
+      name: 'Porto',
       email: 'porto@fleetgate.pt',
       phone: '+351220000001',
       address: 'Aeroporto Francisco Sá Carneiro',
@@ -87,8 +85,7 @@ async function main() {
 
   const faro = await prisma.station.create({
     data: {
-      code: 'FAO-AIRPORT',
-      name: 'Aeroporto de Faro',
+      name: 'Faro',
       email: 'faro@fleetgate.pt',
       phone: '+351289000001',
       address: 'Aeroporto de Faro',
@@ -106,8 +103,7 @@ async function main() {
   // Estação fictícia para manutenção
   const maintenance = await prisma.station.create({
     data: {
-      code: 'MAINTENANCE',
-      name: 'Centro de Manutenção',
+      name: 'Manutenção',
       email: 'manutencao@fleetgate.pt',
       phone: '+351210000099',
       address: 'Zona Industrial',
@@ -125,8 +121,7 @@ async function main() {
   // Estação fictícia para roubados
   const stolen = await prisma.station.create({
     data: {
-      code: 'STOLEN',
-      name: 'Veículos Roubados',
+      name: 'Roubados',
       email: 'suporte@fleetgate.pt',
       phone: '+351210000099',
       address: 'N/A',
@@ -143,30 +138,22 @@ async function main() {
 
   // 3. Create Users
   console.log('👥 Creating users...');
+  const hashedITPassword = await bcrypt.hash('it1234', 10);
   const hashedPassword = await bcrypt.hash('Password123!', 10);
 
   // IT User
   const itUser = await prisma.user.create({
     data: {
-      userCode: 'IT0001',
+      userCode: 'IT',
       email: 'it@fleetgate.pt',
-      password: hashedPassword,
+      password: hashedITPassword,
       role: 'IT',
       status: 'ACTIVE',
       firstName: 'Carlos',
       lastName: 'Silva',
       fullName: 'Carlos Silva',
       phone: '+351910000001',
-      cpf: '11111111111',
-      nif: '111111111',
-      dateOfBirth: new Date('1985-01-15'),
-      address: 'Rua IT, 1',
-      city: 'Lisboa',
-      postalCode: '1000-001',
-      country: 'Portugal',
-      employeeNumber: 'EMP001',
-      hireDate: new Date('2020-01-01'),
-      departmentId: departments[0].id,
+      stationId: lisbon.id,
       emailVerified: true,
       phoneVerified: true,
       acceptedTerms: true,
@@ -185,16 +172,6 @@ async function main() {
       lastName: 'Santos',
       fullName: 'Maria Santos',
       phone: '+351910000002',
-      cpf: '22222222222',
-      nif: '222222222',
-      dateOfBirth: new Date('1988-05-20'),
-      address: 'Rua Admin, 2',
-      city: 'Lisboa',
-      postalCode: '1000-002',
-      country: 'Portugal',
-      employeeNumber: 'EMP002',
-      hireDate: new Date('2020-03-01'),
-      departmentId: departments[1].id,
       stationId: lisbon.id,
       emailVerified: true,
       phoneVerified: true,
@@ -214,16 +191,6 @@ async function main() {
       lastName: 'Ferreira',
       fullName: 'João Ferreira',
       phone: '+351910000003',
-      cpf: '33333333333',
-      nif: '333333333',
-      dateOfBirth: new Date('1992-08-10'),
-      address: 'Rua Staff, 3',
-      city: 'Lisboa',
-      postalCode: '1000-003',
-      country: 'Portugal',
-      employeeNumber: 'EMP003',
-      hireDate: new Date('2021-01-15'),
-      departmentId: departments[2].id,
       stationId: lisbon.id,
       emailVerified: true,
       phoneVerified: true,
@@ -243,16 +210,6 @@ async function main() {
       lastName: 'Costa',
       fullName: 'Ana Costa',
       phone: '+351910000004',
-      cpf: '44444444444',
-      nif: '444444444',
-      dateOfBirth: new Date('1990-12-05'),
-      address: 'Rua Staff, 4',
-      city: 'Porto',
-      postalCode: '4000-004',
-      country: 'Portugal',
-      employeeNumber: 'EMP004',
-      hireDate: new Date('2021-06-01'),
-      departmentId: departments[2].id,
       stationId: porto.id,
       emailVerified: true,
       phoneVerified: true,
@@ -272,16 +229,6 @@ async function main() {
       lastName: 'Almeida',
       fullName: 'Pedro Almeida',
       phone: '+351910000005',
-      cpf: '55555555555',
-      nif: '555555555',
-      dateOfBirth: new Date('1987-03-25'),
-      address: 'Rua Fleet, 5',
-      city: 'Faro',
-      postalCode: '8000-005',
-      country: 'Portugal',
-      employeeNumber: 'EMP005',
-      hireDate: new Date('2020-09-01'),
-      departmentId: departments[1].id,
       stationId: faro.id,
       emailVerified: true,
       phoneVerified: true,
@@ -319,6 +266,7 @@ async function main() {
       acceptedTerms: true,
       clientRating: 4.8,
       totalRentals: 12,
+      // stationId removido para cliente
     },
   });
 
@@ -328,29 +276,30 @@ async function main() {
       role: 'CLIENT',
       status: 'ACTIVE',
       customerType: 'INDIVIDUAL',
-      firstName: 'Sofia',
-      lastName: 'Rodrigues',
-      fullName: 'Sofia Rodrigues',
-      email: 'sofia@example.com',
+      firstName: 'Beatriz',
+      lastName: 'Mendes',
+      fullName: 'Beatriz Mendes',
+      email: 'beatriz@example.com',
       phone: '+351920000002',
       cpf: '77777777777',
       nif: '777777777',
-      dateOfBirth: new Date('1990-09-20'),
+      dateOfBirth: new Date('1990-11-22'),
       address: 'Rua Cliente, 20',
       city: 'Porto',
-      postalCode: '4200-020',
+      postalCode: '4100-020',
       country: 'Portugal',
       licenseNumber: 'L987654321',
-      licenseExpiry: new Date('2029-09-20'),
-      licenseIssueDate: new Date('2010-09-20'),
+      licenseExpiry: new Date('2028-11-22'),
+      licenseIssueDate: new Date('2008-11-22'),
       licenseCountry: 'Portugal',
-      idCardNumber: 'ID789012',
-      idCardExpiry: new Date('2030-09-20'),
+      idCardNumber: 'ID987654',
+      idCardExpiry: new Date('2029-11-22'),
       emailVerified: true,
       phoneVerified: true,
       acceptedTerms: true,
-      clientRating: 5.0,
-      totalRentals: 5,
+      clientRating: 4.5,
+      totalRentals: 8,
+      // stationId removido para cliente
     },
   });
 
@@ -1349,7 +1298,7 @@ async function main() {
   console.log(`- Activity Logs: 3`);
   console.log(`- User Permissions: 4`);
   console.log('\n🔑 Test Credentials:');
-  console.log('IT: it@fleetgate.pt / Password123!');
+  console.log('IT: it@fleetgate.pt / it1234');
   console.log('Admin Lisboa: admin.lisboa@fleetgate.pt / Password123!');
   console.log('Staff Lisboa: staff.lisboa@fleetgate.pt / Password123!');
   console.log('Staff Porto: staff.porto@fleetgate.pt / Password123!');

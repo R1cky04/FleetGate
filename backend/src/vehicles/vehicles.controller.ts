@@ -38,7 +38,7 @@ export class VehiclesController {
 
   @Get('station/:stationId')
   getByStation(
-    @Param('stationId') stationId: string,
+    @Param('stationId', ParseIntPipe) stationId: number,
     @CurrentUser() user: JwtUser,
   ) {
     return this.vehiclesService.getVehiclesByStation(stationId, user.id);
@@ -50,8 +50,9 @@ export class VehiclesController {
     @Query('pickupDate') pickupDate: string,
     @Query('returnDate') returnDate: string,
   ) {
+    const stationIdValue = Number(stationId);
     return this.vehiclesService.getAvailableVehicles(
-      stationId,
+      Number.isNaN(stationIdValue) ? 0 : stationIdValue,
       new Date(pickupDate),
       new Date(returnDate),
     );

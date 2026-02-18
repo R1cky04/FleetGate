@@ -73,7 +73,7 @@
             </div>
 
             <div class="filters-bar">
-              <input v-model="userSearch" class="filter-input" type="text" placeholder="Search username, name, email, phone..." />
+              <input v-model="userSearch" class="filter-input" type="text" placeholder="Search username, name, email, phone, station..." />
               <select v-model="userRoleFilter" class="filter-select">
                 <option value="">All Roles</option>
                 <option value="CLIENT">Client</option>
@@ -88,6 +88,13 @@
                 <option value="INACTIVE">INACTIVE</option>
                 <option value="SUSPENDED">SUSPENDED</option>
                 <option value="PENDING">PENDING</option>
+              </select>
+              <select v-model="userStationFilter" class="filter-select">
+                <option value="">All Stations</option>
+                <option value="__none__">No Station</option>
+                <option v-for="station in stations" :key="station.id" :value="station.id">
+                  {{ station.name }} (#{{ station.id }})
+                </option>
               </select>
               <button class="btn-cancel" @click="clearUserFilters">Clear</button>
             </div>
@@ -172,48 +179,11 @@
                   </div>
                   <div class="form-group">
                     <label>Email</label>
-                    <input v-model="newUser.email" type="email" placeholder="Enter email" />
+                    <input v-model="newUser.email" type="email" placeholder="Optional" />
                   </div>
                   <div class="form-group">
                     <label>Date of Birth</label>
                     <input v-model="newUser.dateOfBirth" type="date" />
-                  </div>
-                </div>
-
-                <div class="section-title">Identification</div>
-                <div class="form-grid-two">
-                  <div class="form-group">
-                    <label>CPF</label>
-                    <input v-model="newUser.cpf" type="text" placeholder="Optional" />
-                  </div>
-                  <div class="form-group">
-                    <label>NIF</label>
-                    <input v-model="newUser.nif" type="text" placeholder="Optional" />
-                  </div>
-                  <div class="form-group">
-                    <label>Nationality</label>
-                    <div class="autocomplete-wrapper">
-                      <input
-                        v-model="newUser.nationality"
-                        type="text"
-                        placeholder="Type to filter nationality"
-                        @focus="showNationalityDropdown = true"
-                        @input="showNationalityDropdown = true"
-                        @blur="closeNationalityDropdown"
-                      />
-                      <div v-if="showNationalityDropdown" class="autocomplete-list">
-                        <button
-                          v-for="nationality in filteredNationalities"
-                          :key="nationality"
-                          type="button"
-                          class="autocomplete-item"
-                          @mousedown.prevent="selectNationality(nationality)"
-                        >
-                          {{ nationality }}
-                        </button>
-                        <div v-if="filteredNationalities.length === 0" class="autocomplete-empty">No nationality found</div>
-                      </div>
-                    </div>
                   </div>
                 </div>
 
@@ -245,6 +215,35 @@
                 <template v-if="newUser.role === 'CLIENT'">
                   <div class="section-title">Client Dossier</div>
                   <div class="form-grid-two">
+                    <div class="form-group">
+                      <label>NIF</label>
+                      <input v-model="newUser.nif" type="text" placeholder="Optional" />
+                    </div>
+                    <div class="form-group">
+                      <label>Nationality</label>
+                      <div class="autocomplete-wrapper">
+                        <input
+                          v-model="newUser.nationality"
+                          type="text"
+                          placeholder="Type to filter nationality"
+                          @focus="showNationalityDropdown = true"
+                          @input="showNationalityDropdown = true"
+                          @blur="closeNationalityDropdown"
+                        />
+                        <div v-if="showNationalityDropdown" class="autocomplete-list">
+                          <button
+                            v-for="nationality in filteredNationalities"
+                            :key="nationality"
+                            type="button"
+                            class="autocomplete-item"
+                            @mousedown.prevent="selectNationality(nationality)"
+                          >
+                            {{ nationality }}
+                          </button>
+                          <div v-if="filteredNationalities.length === 0" class="autocomplete-empty">No nationality found</div>
+                        </div>
+                      </div>
+                    </div>
                     <div class="form-group">
                       <label>Driving License Number</label>
                       <input v-model="newUser.licenseNumber" type="text" placeholder="License number" />
@@ -302,12 +301,12 @@
                   </div>
                 </template>
 
-                <div class="form-group" v-if="['FLEET', 'STAFF', 'ADMIN'].includes(newUser.role)">
-                  <label>Station</label>
+                <div class="form-group">
+                  <label>Station (Optional)</label>
                   <select v-model="newUser.stationId">
                     <option value="">Select station</option>
                     <option v-for="station in stations" :key="station.id" :value="station.id">
-                      {{ station.name }} ({{ station.code }})
+                      {{ station.name }} (#{{ station.id }})
                     </option>
                   </select>
                 </div>
@@ -326,55 +325,246 @@
               </div>
             </div>
 
-            <div v-if="showEditUserForm" class="edit-user-form">
-              <h4>Edit User: {{ editUserForm.userCode }}</h4>
-              <div class="form-group">
-                <label>First Name</label>
-                <input v-model="editUserForm.firstName" type="text" placeholder="First name" />
-              </div>
-              <div class="form-group">
-                <label>Last Name</label>
-                <input v-model="editUserForm.lastName" type="text" placeholder="Last name" />
-              </div>
-              <div class="form-group">
-                <label>Phone</label>
-                <input v-model="editUserForm.phone" type="text" placeholder="Phone (9-15 digits)" />
-              </div>
-              <div class="form-group">
-                <label>Email</label>
-                <input v-model="editUserForm.email" type="email" placeholder="Email" />
-              </div>
-              <div class="form-group">
-                <label>Role</label>
-                <select v-model="editUserForm.role">
-                  <option value="CLIENT">Client</option>
-                  <option value="FLEET">Fleet</option>
-                  <option value="STAFF">Staff</option>
-                  <option value="IT">IT</option>
-                  <option value="ADMIN">Admin</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label>Status</label>
-                <select v-model="editUserForm.status">
-                  <option value="ACTIVE">ACTIVE</option>
-                  <option value="INACTIVE">INACTIVE</option>
-                  <option value="SUSPENDED">SUSPENDED</option>
-                  <option value="PENDING">PENDING</option>
-                </select>
-              </div>
-              <div class="form-group" v-if="['FLEET', 'STAFF', 'ADMIN'].includes(editUserForm.role)">
-                <label>Station</label>
-                <select v-model="editUserForm.stationId">
-                  <option value="">Select station</option>
-                  <option v-for="station in stations" :key="station.id" :value="station.id">
-                    {{ station.name }} ({{ station.code }})
-                  </option>
-                </select>
-              </div>
-              <div class="form-actions">
-                <button class="btn-submit" @click="saveUserEdit">Save Changes</button>
-                <button class="btn-cancel" @click="cancelUserEdit">Cancel</button>
+            <div v-if="showEditUserForm" class="modal-overlay" @click="cancelUserEdit">
+              <div class="modal-card" @click.stop>
+                <h4>Edit User</h4>
+                <div class="form-grid-two">
+                  <div class="form-group">
+                    <label>Username</label>
+                    <input v-model="editUserForm.userCode" type="text" placeholder="Enter username" />
+                  </div>
+                  <div class="form-group">
+                    <label>Role</label>
+                    <select v-model="editUserForm.role">
+                      <option value="CLIENT">Client</option>
+                      <option value="FLEET">Fleet</option>
+                      <option value="STAFF">Staff</option>
+                      <option value="IT">IT</option>
+                      <option value="ADMIN">Admin</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label>Status</label>
+                    <select v-model="editUserForm.status">
+                      <option value="ACTIVE">ACTIVE</option>
+                      <option value="INACTIVE">INACTIVE</option>
+                      <option value="SUSPENDED">SUSPENDED</option>
+                      <option value="PENDING">PENDING</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="section-title">Password (Optional)</div>
+                <div class="form-grid-two">
+                  <div class="form-group">
+                    <label>New Password</label>
+                    <div class="password-field">
+                      <input
+                        v-model="editUserForm.password"
+                        :type="showEditPassword ? 'text' : 'password'"
+                        placeholder="Leave blank to keep"
+                      />
+                      <button type="button" class="btn-toggle-password" @click="showEditPassword = !showEditPassword">
+                        {{ showEditPassword ? 'Hide' : 'Show' }}
+                      </button>
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label>Confirm Password</label>
+                    <div class="password-field">
+                      <input
+                        v-model="editUserForm.confirmPassword"
+                        :type="showEditConfirmPassword ? 'text' : 'password'"
+                        placeholder="Repeat password"
+                      />
+                      <button type="button" class="btn-toggle-password" @click="showEditConfirmPassword = !showEditConfirmPassword">
+                        {{ showEditConfirmPassword ? 'Hide' : 'Show' }}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="section-title">Base Information</div>
+                <div class="form-grid-two">
+                  <div class="form-group">
+                    <label>First Name</label>
+                    <input v-model="editUserForm.firstName" type="text" placeholder="Enter first name" />
+                  </div>
+                  <div class="form-group">
+                    <label>Last Name</label>
+                    <input v-model="editUserForm.lastName" type="text" placeholder="Enter last name" />
+                  </div>
+                  <div class="form-group">
+                    <label>Phone</label>
+                    <div class="phone-field">
+                      <span class="phone-plus">+</span>
+                      <input
+                        v-model="editUserForm.phoneCountryCode"
+                        class="phone-code-input"
+                        type="text"
+                        placeholder="351"
+                      />
+                      <input
+                        v-model="editUserForm.phone"
+                        class="phone-number-input"
+                        type="text"
+                        placeholder="Phone number"
+                      />
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label>Alternative Phone</label>
+                    <input v-model="editUserForm.alternativePhone" type="text" placeholder="Optional" />
+                  </div>
+                  <div class="form-group">
+                    <label>Email</label>
+                    <input v-model="editUserForm.email" type="email" placeholder="Optional" />
+                  </div>
+                  <div class="form-group">
+                    <label>Date of Birth</label>
+                    <input v-model="editUserForm.dateOfBirth" type="date" />
+                  </div>
+                </div>
+
+                <div class="section-title">Identification</div>
+                <div class="form-grid-two">
+                  <div class="form-group">
+                    <label>NIF</label>
+                    <input v-model="editUserForm.nif" type="text" placeholder="Optional" />
+                  </div>
+                  <div class="form-group">
+                    <label>Nationality</label>
+                    <div class="autocomplete-wrapper">
+                      <input
+                        v-model="editUserForm.nationality"
+                        type="text"
+                        placeholder="Type to filter nationality"
+                        @focus="showEditNationalityDropdown = true"
+                        @input="showEditNationalityDropdown = true"
+                        @blur="closeEditNationalityDropdown"
+                      />
+                      <div v-if="showEditNationalityDropdown" class="autocomplete-list">
+                        <button
+                          v-for="nationality in filteredEditNationalities"
+                          :key="nationality"
+                          type="button"
+                          class="autocomplete-item"
+                          @mousedown.prevent="selectEditNationality(nationality)"
+                        >
+                          {{ nationality }}
+                        </button>
+                        <div v-if="filteredEditNationalities.length === 0" class="autocomplete-empty">No nationality found</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="section-title">Address</div>
+                <div class="form-grid-two">
+                  <div class="form-group">
+                    <label>Address</label>
+                    <input v-model="editUserForm.address" type="text" placeholder="Street and number" />
+                  </div>
+                  <div class="form-group">
+                    <label>City</label>
+                    <input v-model="editUserForm.city" type="text" placeholder="City" />
+                  </div>
+                  <div class="form-group">
+                    <label>Postal Code</label>
+                    <input v-model="editUserForm.postalCode" type="text" placeholder="Postal code" />
+                  </div>
+                  <div class="form-group">
+                    <label>Country</label>
+                    <input
+                      v-model="editUserForm.country"
+                      list="country-options-edit"
+                      type="text"
+                      placeholder="Type to filter country"
+                    />
+                  </div>
+                </div>
+
+                <template v-if="editUserForm.role === 'CLIENT'">
+                  <div class="section-title">Client Dossier</div>
+                  <div class="form-grid-two">
+                    <div class="form-group">
+                      <label>Driving License Number</label>
+                      <input v-model="editUserForm.licenseNumber" type="text" placeholder="License number" />
+                    </div>
+                    <div class="form-group">
+                      <label>License Country</label>
+                      <input
+                        v-model="editUserForm.licenseCountry"
+                        list="country-options-edit"
+                        type="text"
+                        placeholder="Type to filter country"
+                      />
+                    </div>
+                    <div class="form-group">
+                      <label>License Issue Date</label>
+                      <input v-model="editUserForm.licenseIssueDate" type="date" />
+                    </div>
+                    <div class="form-group">
+                      <label>License Expiry</label>
+                      <input v-model="editUserForm.licenseExpiry" type="date" />
+                    </div>
+                    <div class="form-group">
+                      <label>Identification Document</label>
+                      <select v-model="editUserForm.idDocumentType">
+                        <option value="CC">Citizen Card (CC)</option>
+                        <option value="PASSPORT">Passport</option>
+                      </select>
+                    </div>
+                    <div class="form-group">
+                      <label>{{ editUserForm.idDocumentType === 'PASSPORT' ? 'Passport Number' : 'CC Number' }}</label>
+                      <input
+                        v-model="editUserForm.idCardNumber"
+                        type="text"
+                        :placeholder="editUserForm.idDocumentType === 'PASSPORT' ? 'Passport number' : 'Citizen card number'"
+                      />
+                    </div>
+                    <div class="form-group">
+                      <label>{{ editUserForm.idDocumentType === 'PASSPORT' ? 'Passport Expiry' : 'CC Expiry' }}</label>
+                      <input v-model="editUserForm.idCardExpiry" type="date" />
+                    </div>
+                  </div>
+                </template>
+
+                <template v-else>
+                  <div class="section-title">Staff Additional Information</div>
+                  <div class="form-grid-two">
+                    <div class="form-group">
+                      <label>Employee Number</label>
+                      <input v-model="editUserForm.employeeNumber" type="text" placeholder="Employee number" />
+                    </div>
+                    <div class="form-group">
+                      <label>Hire Date</label>
+                      <input v-model="editUserForm.hireDate" type="date" />
+                    </div>
+                  </div>
+                </template>
+
+                <div class="form-group">
+                  <label>Station (Optional)</label>
+                  <select v-model="editUserForm.stationId">
+                    <option value="">Select station</option>
+                    <option v-for="station in stations" :key="station.id" :value="station.id">
+                      {{ station.name }} (#{{ station.id }})
+                    </option>
+                  </select>
+                </div>
+
+                <div v-if="editUserFormError" class="form-error">{{ editUserFormError }}</div>
+                <div v-if="editUserFormSuccess" class="form-success">{{ editUserFormSuccess }}</div>
+
+                <div class="form-actions">
+                  <button class="btn-submit" @click="saveUserEdit">Save Changes</button>
+                  <button class="btn-cancel" @click="cancelUserEdit">Cancel</button>
+                </div>
+
+                <datalist id="country-options-edit">
+                  <option v-for="country in COUNTRY_OPTIONS" :key="country" :value="country" />
+                </datalist>
               </div>
             </div>
 
@@ -426,7 +616,7 @@
             </div>
 
             <div class="filters-bar">
-              <input v-model="stationSearch" class="filter-input" type="text" placeholder="Search code, name, city, email..." />
+              <input v-model="stationSearch" class="filter-input" type="text" placeholder="Search id, name, city, email..." />
               <select v-model="stationStatusFilter" class="filter-select">
                 <option value="">All Status</option>
                 <option value="ACTIVE">ACTIVE</option>
@@ -435,40 +625,41 @@
               <button class="btn-cancel" @click="clearStationFilters">Clear</button>
             </div>
 
-            <div v-if="showAddStationForm" class="add-station-form">
-              <div class="form-group">
-                <label>Station Name</label>
-                <input v-model="newStation.name" type="text" placeholder="Enter station name" />
-              </div>
-              <div class="form-group">
-                <label>Code</label>
-                <input v-model="newStation.code" type="text" placeholder="Enter station code" />
-              </div>
-              <div class="form-group">
-                <label>Location</label>
-                <input v-model="newStation.city" type="text" placeholder="Enter city" />
-              </div>
-              <div class="form-group">
-                <label>Email</label>
-                <input v-model="newStation.email" type="email" placeholder="Enter station email" />
-              </div>
-              <div class="form-group">
-                <label>Phone</label>
-                <input v-model="newStation.phone" type="text" placeholder="Enter station phone" />
-              </div>
-              <div class="form-group">
-                <label>Address</label>
-                <input v-model="newStation.address" type="text" placeholder="Enter station address" />
-              </div>
-              <div class="form-group">
-                <label>Postal Code</label>
-                <input v-model="newStation.postalCode" type="text" placeholder="Enter postal code" />
-              </div>
-              <div v-if="stationFormError" class="form-error">{{ stationFormError }}</div>
-              <div v-if="stationFormSuccess" class="form-success">{{ stationFormSuccess }}</div>
-              <div class="form-actions">
-                <button class="btn-submit" @click="addStation">Create Station</button>
-                <button class="btn-cancel" @click="closeAddStationForm">Cancel</button>
+            <div v-if="showAddStationForm" class="modal-overlay" @click="closeAddStationForm">
+              <div class="modal-card modal-compact" @click.stop>
+                <h4>Create Station</h4>
+                <div class="form-grid-two">
+                  <div class="form-group">
+                    <label>Station Name</label>
+                    <input v-model="newStation.name" type="text" placeholder="Enter station name" />
+                  </div>
+                  <div class="form-group">
+                    <label>Location</label>
+                    <input v-model="newStation.city" type="text" placeholder="Enter city (optional)" />
+                  </div>
+                  <div class="form-group">
+                    <label>Email</label>
+                    <input v-model="newStation.email" type="email" placeholder="Enter station email (optional)" />
+                  </div>
+                  <div class="form-group">
+                    <label>Phone</label>
+                    <input v-model="newStation.phone" type="text" placeholder="Enter station phone (optional)" />
+                  </div>
+                  <div class="form-group">
+                    <label>Address</label>
+                    <input v-model="newStation.address" type="text" placeholder="Enter station address (optional)" />
+                  </div>
+                  <div class="form-group">
+                    <label>Postal Code</label>
+                    <input v-model="newStation.postalCode" type="text" placeholder="Enter postal code (optional)" />
+                  </div>
+                </div>
+                <div v-if="stationFormError" class="form-error">{{ stationFormError }}</div>
+                <div v-if="stationFormSuccess" class="form-success">{{ stationFormSuccess }}</div>
+                <div class="form-actions">
+                  <button class="btn-submit" @click="addStation">Create Station</button>
+                  <button class="btn-cancel" @click="closeAddStationForm">Cancel</button>
+                </div>
               </div>
             </div>
 
@@ -477,10 +668,6 @@
               <div class="form-group">
                 <label>Station Name</label>
                 <input v-model="editStationForm.name" type="text" placeholder="Station name" />
-              </div>
-              <div class="form-group">
-                <label>Code</label>
-                <input v-model="editStationForm.code" type="text" placeholder="Code" />
               </div>
               <div class="form-group">
                 <label>City</label>
@@ -520,7 +707,7 @@
                 <thead>
                   <tr>
                     <th>Name</th>
-                    <th>Code</th>
+                    <th>ID</th>
                     <th>City</th>
                     <th>Contacts</th>
                     <th>Usage</th>
@@ -531,9 +718,9 @@
                 <tbody>
                   <tr v-for="station in filteredStations" :key="station.id">
                     <td>{{ station.name }}</td>
-                    <td>{{ station.code }}</td>
-                    <td>{{ station.city }}</td>
-                    <td>{{ station.email }} / {{ station.phone }}</td>
+                    <td>#{{ station.id }}</td>
+                    <td>{{ station.city || '-' }}</td>
+                    <td>{{ station.email || '-' }} / {{ station.phone || '-' }}</td>
                     <td>{{ station._count?.users || 0 }} users · {{ station._count?.vehicles || 0 }} vehicles</td>
                     <td><span :class="['status-badge', station.isActive ? 'active' : 'inactive']">{{ station.isActive ? 'ACTIVE' : 'INACTIVE' }}</span></td>
                     <td>
@@ -697,6 +884,7 @@ const users = ref<any[]>([])
 const userSearch = ref('')
 const userRoleFilter = ref('')
 const userStatusFilter = ref('ACTIVE')
+const userStationFilter = ref('')
 const createEmptyNewUser = () => ({
   username: '',
   password: '',
@@ -707,7 +895,6 @@ const createEmptyNewUser = () => ({
   phone: '',
   alternativePhone: '',
   email: '',
-  cpf: '',
   nif: '',
   nationality: '',
   dateOfBirth: '',
@@ -725,7 +912,7 @@ const createEmptyNewUser = () => ({
   employeeNumber: '',
   hireDate: '',
   role: 'CLIENT',
-  stationId: '',
+  stationId: undefined,
 })
 
 const newUser = ref(createEmptyNewUser())
@@ -737,23 +924,48 @@ const userFormError = ref('')
 const userFormSuccess = ref('')
 const showEditUserForm = ref(false)
 const editingUserId = ref<number | null>(null)
-const editUserForm = ref({
+const createEmptyEditUser = () => ({
   userCode: '',
+  password: '',
+  confirmPassword: '',
   firstName: '',
   lastName: '',
+  phoneCountryCode: '',
   phone: '',
+  alternativePhone: '',
   email: '',
+  nif: '',
+  nationality: '',
+  dateOfBirth: '',
+  address: '',
+  city: '',
+  postalCode: '',
+  country: '',
+  licenseNumber: '',
+  licenseExpiry: '',
+  licenseIssueDate: '',
+  licenseCountry: '',
+  idDocumentType: 'CC',
+  idCardNumber: '',
+  idCardExpiry: '',
+  employeeNumber: '',
+  hireDate: '',
   role: 'CLIENT',
   status: 'ACTIVE',
-  stationId: '',
+  stationId: undefined,
 })
+const editUserForm = ref(createEmptyEditUser())
+const showEditNationalityDropdown = ref(false)
+const showEditPassword = ref(false)
+const showEditConfirmPassword = ref(false)
+const editUserFormError = ref('')
+const editUserFormSuccess = ref('')
 
 // Stations Management
 const stations = ref<any[]>([])
 const stationSearch = ref('')
 const stationStatusFilter = ref('')
 const newStation = ref({
-  code: '',
   name: '',
   email: '',
   phone: '',
@@ -765,9 +977,8 @@ const stationFormError = ref('')
 const stationFormSuccess = ref('')
 const showAddStationForm = ref(false)
 const showEditStationForm = ref(false)
-const editingStationId = ref('')
+const editingStationId = ref<number | null>(null)
 const editStationForm = ref({
-  code: '',
   name: '',
   email: '',
   phone: '',
@@ -802,11 +1013,14 @@ const filteredLogs = computed(() => {
 })
 
 const filteredUsers = computed(() => {
-  const search = userSearch.value.trim().toLowerCase()
+  const terms = userSearch.value.trim().toLowerCase().split(/\s+/).filter(Boolean)
 
   return users.value.filter(user => {
     const roleMatch = !userRoleFilter.value || user.role === userRoleFilter.value
     const statusMatch = !userStatusFilter.value || user.status === userStatusFilter.value
+    const stationMatch = !userStationFilter.value
+      || (userStationFilter.value === '__none__' && !user.stationId)
+      || Number(user.stationId) === Number(userStationFilter.value)
 
     const content = [
       user.userCode,
@@ -815,13 +1029,19 @@ const filteredUsers = computed(() => {
       user.fullName,
       user.email,
       user.phone,
+      user.role,
+      user.status,
+      user.nif,
+      user.nationality,
+      user.station?.name,
+      user.station?.id,
     ]
       .filter(Boolean)
       .join(' ')
       .toLowerCase()
 
-    const searchMatch = !search || content.includes(search)
-    return roleMatch && statusMatch && searchMatch
+    const searchMatch = terms.length === 0 || terms.every(term => content.includes(term))
+    return roleMatch && statusMatch && stationMatch && searchMatch
   })
 })
 
@@ -833,7 +1053,7 @@ const filteredStations = computed(() => {
     const statusMatch = !stationStatusFilter.value || stationStatusFilter.value === status
 
     const content = [
-      station.code,
+      station.id,
       station.name,
       station.city,
       station.email,
@@ -850,6 +1070,17 @@ const filteredStations = computed(() => {
 
 const filteredNationalities = computed(() => {
   const query = newUser.value.nationality.trim().toLowerCase()
+  if (!query) {
+    return NATIONALITY_OPTIONS
+  }
+
+  return NATIONALITY_OPTIONS.filter((nationality) =>
+    nationality.toLowerCase().includes(query),
+  )
+})
+
+const filteredEditNationalities = computed(() => {
+  const query = editUserForm.value.nationality.trim().toLowerCase()
   if (!query) {
     return NATIONALITY_OPTIONS
   }
@@ -894,14 +1125,32 @@ const normalizeDateInput = (value: string) => {
   return undefined
 }
 
+const formatDateForInput = (value?: string | null) => {
+  if (!value) return ''
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return ''
+  return parsed.toISOString().split('T')[0]
+}
+
 const selectNationality = (nationality: string) => {
   newUser.value.nationality = nationality
   showNationalityDropdown.value = false
 }
 
+const selectEditNationality = (nationality: string) => {
+  editUserForm.value.nationality = nationality
+  showEditNationalityDropdown.value = false
+}
+
 const closeNationalityDropdown = () => {
   setTimeout(() => {
     showNationalityDropdown.value = false
+  }, 120)
+}
+
+const closeEditNationalityDropdown = () => {
+  setTimeout(() => {
+    showEditNationalityDropdown.value = false
   }, 120)
 }
 
@@ -1034,6 +1283,15 @@ const resetNewUserForm = () => {
   userFormSuccess.value = ''
 }
 
+const resetEditUserForm = () => {
+  editUserForm.value = createEmptyEditUser()
+  showEditNationalityDropdown.value = false
+  showEditPassword.value = false
+  showEditConfirmPassword.value = false
+  editUserFormError.value = ''
+  editUserFormSuccess.value = ''
+}
+
 const openAddUserForm = () => {
   resetNewUserForm()
   showAddUserForm.value = true
@@ -1045,7 +1303,6 @@ const closeAddUserForm = () => {
 }
 
 const createEmptyNewStation = () => ({
-  code: '',
   name: '',
   email: '',
   phone: '',
@@ -1113,11 +1370,6 @@ const addUser = async () => {
     return
   }
 
-  if (['FLEET', 'STAFF', 'ADMIN'].includes(newUser.value.role) && !newUser.value.stationId) {
-    userFormError.value = 'Station is required for Fleet, Staff and Admin users.'
-    return
-  }
-
   try {
     isLoading.value = true
     const response = await axios.post(`${APIUrl}/users`, {
@@ -1127,8 +1379,8 @@ const addUser = async () => {
       phone: composedPhone,
       alternativePhone: newUser.value.alternativePhone ? newUser.value.alternativePhone.replace(/\D/g, '') : undefined,
       email: newUser.value.email || undefined,
-      cpf: newUser.value.cpf || undefined,
-      nif: newUser.value.nif || undefined,
+      nif: newUser.value.role === 'CLIENT' ? newUser.value.nif || undefined : undefined,
+      nationality: newUser.value.role === 'CLIENT' ? newUser.value.nationality || undefined : undefined,
       dateOfBirth: normalizeDateInput(newUser.value.dateOfBirth),
       address: newUser.value.address || undefined,
       city: newUser.value.city || undefined,
@@ -1143,7 +1395,7 @@ const addUser = async () => {
       hireDate: newUser.value.role !== 'CLIENT' ? normalizeDateInput(newUser.value.hireDate) : undefined,
       password: newUser.value.password,
       role: newUser.value.role,
-      stationId: newUser.value.stationId || undefined,
+      stationId: newUser.value.stationId ? Number(newUser.value.stationId) : undefined,
     }, {
       headers: authHeaders()
     })
@@ -1162,16 +1414,40 @@ const addUser = async () => {
 }
 
 const editUser = (user: any) => {
+  resetEditUserForm()
   editingUserId.value = user.id
+  const phoneDigits = (user.phone || '').toString().replace(/\D/g, '')
+  const countryCode = phoneDigits.length > 9 ? phoneDigits.slice(0, phoneDigits.length - 9) : ''
+  const phoneNumber = phoneDigits.length > 9 ? phoneDigits.slice(-9) : phoneDigits
   editUserForm.value = {
     userCode: user.userCode || '',
+    password: '',
+    confirmPassword: '',
     firstName: user.firstName || '',
     lastName: user.lastName || '',
-    phone: user.phone || '',
+    phoneCountryCode: countryCode,
+    phone: phoneNumber,
+    alternativePhone: user.alternativePhone || '',
     email: user.email || '',
+    nif: user.nif || '',
+    nationality: user.nationality || '',
+    dateOfBirth: formatDateForInput(user.dateOfBirth),
+    address: user.address || '',
+    city: user.city || '',
+    postalCode: user.postalCode || '',
+    country: user.country || '',
+    licenseNumber: user.licenseNumber || '',
+    licenseExpiry: formatDateForInput(user.licenseExpiry),
+    licenseIssueDate: formatDateForInput(user.licenseIssueDate),
+    licenseCountry: user.licenseCountry || '',
+    idDocumentType: 'CC',
+    idCardNumber: user.idCardNumber || '',
+    idCardExpiry: formatDateForInput(user.idCardExpiry),
+    employeeNumber: user.employeeNumber || '',
+    hireDate: formatDateForInput(user.hireDate),
     role: user.role || 'CLIENT',
     status: user.status || 'ACTIVE',
-    stationId: user.stationId || '',
+    stationId: user.stationId ? String(user.stationId) : '',
   }
   showEditUserForm.value = true
 }
@@ -1179,45 +1455,78 @@ const editUser = (user: any) => {
 const saveUserEdit = async () => {
   if (!editingUserId.value) return
 
-  if (!editUserForm.value.firstName || !editUserForm.value.lastName || !editUserForm.value.phone) {
-    alert('First name, last name and phone are required')
+  editUserFormError.value = ''
+  editUserFormSuccess.value = ''
+
+  const phoneCountryCodeDigits = (editUserForm.value.phoneCountryCode || '').replace(/\D/g, '')
+  const phoneDigits = (editUserForm.value.phone || '').replace(/\D/g, '')
+  const composedPhone = `${phoneCountryCodeDigits}${phoneDigits}`
+
+  if (!editUserForm.value.userCode || !editUserForm.value.firstName || !editUserForm.value.lastName || !phoneDigits) {
+    editUserFormError.value = 'Please fill in username, name, and phone.'
     return
   }
 
-  if (!/^\d{9,15}$/.test(editUserForm.value.phone)) {
-    alert('Phone must have 9 to 15 digits')
+  if (!/^[A-Za-z0-9]+$/.test(editUserForm.value.userCode)) {
+    editUserFormError.value = 'Username must contain only letters and numbers.'
     return
   }
 
-  if (['FLEET', 'STAFF', 'ADMIN'].includes(editUserForm.value.role) && !editUserForm.value.stationId) {
-    alert('Station is required for Fleet, Staff and Admin users')
+  if (editUserForm.value.password || editUserForm.value.confirmPassword) {
+    if (editUserForm.value.password.length < 8) {
+      editUserFormError.value = 'Password must have at least 8 characters.'
+      return
+    }
+
+    if (editUserForm.value.password !== editUserForm.value.confirmPassword) {
+      editUserFormError.value = 'Password and confirm password must match.'
+      return
+    }
+  }
+
+  if (!/^[0-9]{9,15}$/.test(composedPhone)) {
+    editUserFormError.value = 'Phone with country code must have 9 to 15 digits.'
     return
   }
 
   try {
     isLoading.value = true
     await axios.patch(`${APIUrl}/users/${editingUserId.value}`, {
+      userCode: editUserForm.value.userCode.toUpperCase().trim(),
       firstName: editUserForm.value.firstName,
       lastName: editUserForm.value.lastName,
-      phone: editUserForm.value.phone,
+      phone: composedPhone,
+      alternativePhone: editUserForm.value.alternativePhone ? editUserForm.value.alternativePhone.replace(/\D/g, '') : undefined,
       email: editUserForm.value.email || undefined,
+      nif: editUserForm.value.nif || undefined,
+      nationality: editUserForm.value.nationality || undefined,
+      dateOfBirth: normalizeDateInput(editUserForm.value.dateOfBirth),
+      address: editUserForm.value.address || undefined,
+      city: editUserForm.value.city || undefined,
+      postalCode: editUserForm.value.postalCode || undefined,
+      country: editUserForm.value.country || undefined,
+      licenseNumber: editUserForm.value.role === 'CLIENT' ? editUserForm.value.licenseNumber || undefined : undefined,
+      licenseExpiry: editUserForm.value.role === 'CLIENT' ? normalizeDateInput(editUserForm.value.licenseExpiry) : undefined,
+      licenseIssueDate: editUserForm.value.role === 'CLIENT' ? normalizeDateInput(editUserForm.value.licenseIssueDate) : undefined,
+      licenseCountry: editUserForm.value.role === 'CLIENT' ? editUserForm.value.licenseCountry || undefined : undefined,
+      idCardNumber: editUserForm.value.role === 'CLIENT' ? editUserForm.value.idCardNumber || undefined : undefined,
+      idCardExpiry: editUserForm.value.role === 'CLIENT' ? normalizeDateInput(editUserForm.value.idCardExpiry) : undefined,
+      employeeNumber: editUserForm.value.role !== 'CLIENT' ? editUserForm.value.employeeNumber || undefined : undefined,
+      hireDate: editUserForm.value.role !== 'CLIENT' ? normalizeDateInput(editUserForm.value.hireDate) : undefined,
       role: editUserForm.value.role,
       status: editUserForm.value.status,
-      stationId: ['FLEET', 'STAFF', 'ADMIN'].includes(editUserForm.value.role)
-        ? editUserForm.value.stationId
-        : undefined,
+      stationId: editUserForm.value.stationId ? Number(editUserForm.value.stationId) : undefined,
+      password: editUserForm.value.password || undefined,
     }, {
       headers: authHeaders()
     })
 
-    alert('User updated successfully!')
-    showEditUserForm.value = false
-    editingUserId.value = null
+    editUserFormSuccess.value = 'User updated successfully!'
     await loadUsers()
     await loadSystemInfo()
   } catch (error: any) {
     console.error('Error updating user:', error)
-    alert(`Failed to update user: ${error.response?.data?.message || error.message}`)
+    editUserFormError.value = getApiErrorMessage(error, 'Failed to update user.')
   } finally {
     isLoading.value = false
   }
@@ -1226,6 +1535,7 @@ const saveUserEdit = async () => {
 const cancelUserEdit = () => {
   showEditUserForm.value = false
   editingUserId.value = null
+  resetEditUserForm()
 }
 
 const deleteUser = (id: number) => {
@@ -1297,29 +1607,20 @@ const addStation = async () => {
   stationFormError.value = ''
   stationFormSuccess.value = ''
 
-  if (
-    !newStation.value.code ||
-    !newStation.value.name ||
-    !newStation.value.email ||
-    !newStation.value.phone ||
-    !newStation.value.address ||
-    !newStation.value.city ||
-    !newStation.value.postalCode
-  ) {
-    stationFormError.value = 'Please fill in all fields correctly.'
+  if (!newStation.value.name?.trim()) {
+    stationFormError.value = 'Station name is required.'
     return
   }
 
   try {
     isLoading.value = true
     const response = await axios.post(`${APIUrl}/stations`, {
-      code: newStation.value.code.toUpperCase().trim(),
-      name: newStation.value.name,
-      email: newStation.value.email,
-      phone: newStation.value.phone,
-      address: newStation.value.address,
-      city: newStation.value.city,
-      postalCode: newStation.value.postalCode,
+      name: newStation.value.name.trim(),
+      email: newStation.value.email?.trim() || undefined,
+      phone: newStation.value.phone?.trim() || undefined,
+      address: newStation.value.address?.trim() || undefined,
+      city: newStation.value.city?.trim() || undefined,
+      postalCode: newStation.value.postalCode?.trim() || undefined,
       isActive: true,
     }, {
       headers: authHeaders()
@@ -1341,7 +1642,6 @@ const addStation = async () => {
 const editStation = (station: any) => {
   editingStationId.value = station.id
   editStationForm.value = {
-    code: station.code || '',
     name: station.name || '',
     email: station.email || '',
     phone: station.phone || '',
@@ -1356,36 +1656,27 @@ const editStation = (station: any) => {
 const saveStationEdit = async () => {
   if (!editingStationId.value) return
 
-  if (
-    !editStationForm.value.code ||
-    !editStationForm.value.name ||
-    !editStationForm.value.email ||
-    !editStationForm.value.phone ||
-    !editStationForm.value.address ||
-    !editStationForm.value.city ||
-    !editStationForm.value.postalCode
-  ) {
-    alert('Please fill in all station fields')
+  if (!editStationForm.value.name?.trim()) {
+    alert('Station name is required')
     return
   }
 
   try {
     isLoading.value = true
     await axios.patch(`${APIUrl}/stations/${editingStationId.value}`, {
-      code: editStationForm.value.code.toUpperCase().trim(),
-      name: editStationForm.value.name,
-      email: editStationForm.value.email,
-      phone: editStationForm.value.phone,
-      address: editStationForm.value.address,
-      city: editStationForm.value.city,
-      postalCode: editStationForm.value.postalCode,
+      name: editStationForm.value.name.trim(),
+      email: editStationForm.value.email?.trim() || undefined,
+      phone: editStationForm.value.phone?.trim() || undefined,
+      address: editStationForm.value.address?.trim() || undefined,
+      city: editStationForm.value.city?.trim() || undefined,
+      postalCode: editStationForm.value.postalCode?.trim() || undefined,
       isActive: editStationForm.value.isActive,
     }, {
       headers: authHeaders()
     })
     alert('Station updated successfully!')
     showEditStationForm.value = false
-    editingStationId.value = ''
+    editingStationId.value = null
     await loadStations()
     await loadSystemInfo()
   } catch (error: any) {
@@ -1398,10 +1689,10 @@ const saveStationEdit = async () => {
 
 const cancelStationEdit = () => {
   showEditStationForm.value = false
-  editingStationId.value = ''
+  editingStationId.value = null
 }
 
-const deleteStation = (id: string) => {
+const deleteStation = (id: number) => {
   if (!confirm('Are you sure you want to delete this station?')) return
 
   const deleteStationAsync = async () => {
@@ -1484,6 +1775,7 @@ const clearUserFilters = () => {
   userSearch.value = ''
   userRoleFilter.value = ''
   userStatusFilter.value = 'ACTIVE'
+  userStationFilter.value = ''
 }
 
 const clearStationFilters = () => {
@@ -2084,7 +2376,7 @@ tr:hover {
 }
 
 .modal-card {
-  width: min(1100px, 98vw);
+  width: min(900px, 96vw);
   max-height: calc(100vh - 28px);
   overflow-y: auto;
   background: #ffffff;
@@ -2092,6 +2384,10 @@ tr:hover {
   padding: 18px 20px;
   border: 1px solid #d9e2ec;
   box-shadow: 0 16px 36px rgba(0, 0, 0, 0.16);
+}
+
+.modal-card.modal-compact {
+  width: min(720px, 94vw);
 }
 
 .modal-card h4 {

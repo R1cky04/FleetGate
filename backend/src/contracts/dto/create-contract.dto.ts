@@ -28,11 +28,13 @@ export class CreateContractDto {
   @Type(() => Number)
   vehicleId: number;
 
-  @IsString()
-  pickupStationId: string;
+  @IsInt()
+  @Type(() => Number)
+  pickupStationId: number;
 
-  @IsString()
-  returnStationId: string;
+  @IsInt()
+  @Type(() => Number)
+  returnStationId: number;
 
   @IsDateString()
   pickupDate: string;

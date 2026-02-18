@@ -3,9 +3,10 @@ import { VehicleStatus } from '../../../generated/prisma';
 import { Type } from 'class-transformer';
 
 export class FilterVehicleDto {
-  @IsString()
+  @IsInt()
+  @Type(() => Number)
   @IsOptional()
-  stationId?: string;
+  stationId?: number;
 
   @IsString()
   @IsOptional()

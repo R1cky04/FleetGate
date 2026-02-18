@@ -13,9 +13,10 @@ export class FilterVehicleTransferDto {
   @IsOptional()
   driverId?: number;
 
-  @IsString()
+  @IsInt()
+  @Type(() => Number)
   @IsOptional()
-  stationId?: string;
+  stationId?: number;
 
   @IsEnum(VehicleTransferStatus)
   @IsOptional()

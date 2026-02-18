@@ -1,12 +1,14 @@
 import { IsString, IsInt, IsEnum, IsOptional, IsBoolean, IsDateString, IsUrl, Min } from 'class-validator';
+import { Type } from 'class-transformer';
 import { VehicleStatus } from '../../../generated/prisma';
 
 export class CreateVehicleDto {
   @IsString()
   groupId: string;
 
-  @IsString()
-  stationId: string;
+  @IsInt()
+  @Type(() => Number)
+  stationId: number;
 
   @IsString()
   licensePlate: string;

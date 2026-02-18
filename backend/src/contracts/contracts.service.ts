@@ -290,14 +290,18 @@ export class ContractsService {
     }
 
     if (search) {
+      const parsedStationId = Number(search);
       const searchOr = [
         { contractNumber: { contains: search, mode: 'insensitive' } },
         { client: { fullName: { contains: search, mode: 'insensitive' } } },
         { client: { email: { contains: search, mode: 'insensitive' } } },
         { client: { phone: { contains: search, mode: 'insensitive' } } },
         { vehicle: { licensePlate: { contains: search, mode: 'insensitive' } } },
-        { pickupStation: { code: { contains: search, mode: 'insensitive' } } },
-        { returnStation: { code: { contains: search, mode: 'insensitive' } } },
+        { pickupStation: { name: { contains: search, mode: 'insensitive' } } },
+        { returnStation: { name: { contains: search, mode: 'insensitive' } } },
+        ...(!Number.isNaN(parsedStationId)
+          ? [{ pickupStationId: parsedStationId }, { returnStationId: parsedStationId }]
+          : []),
       ];
 
       if (where.OR) {
@@ -336,7 +340,6 @@ export class ContractsService {
           pickupStation: {
             select: {
               id: true,
-              code: true,
               name: true,
               city: true,
             },
@@ -344,7 +347,6 @@ export class ContractsService {
           returnStation: {
             select: {
               id: true,
-              code: true,
               name: true,
               city: true,
             },

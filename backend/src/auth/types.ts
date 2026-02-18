@@ -5,5 +5,5 @@ export interface JwtUser {
   userCode?: string | null;
   email?: string | null;
   role: UserRole;
-  stationId?: string | null;
+  stationId?: number | null;
 }

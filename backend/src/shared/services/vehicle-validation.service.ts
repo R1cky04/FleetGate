@@ -71,7 +71,7 @@ export class VehicleValidationService {
         reason: true,
         openedAt: true,
         openedBy: { select: { id: true, fullName: true } },
-        fromStation: { select: { id: true, code: true, name: true } },
+        fromStation: { select: { id: true, name: true } },
       },
     });
   }

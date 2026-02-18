@@ -8,6 +8,7 @@ import {
   Body,
   UseGuards,
   BadRequestException,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/current-user.decorator';
@@ -164,7 +165,7 @@ export class VehicleRepairsController {
     status: 200,
     description: 'Lista de reparações abertas',
   })
-  async getOpenRepairs(@Param('stationId') stationId: string) {
+  async getOpenRepairs(@Param('stationId', ParseIntPipe) stationId: number) {
     return await this.repairsService.getOpenRepairs(stationId);
   }
 

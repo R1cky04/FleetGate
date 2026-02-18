@@ -154,7 +154,6 @@ export class VehiclesService {
           station: {
             select: {
               id: true,
-              code: true,
               name: true,
               city: true,
             },
@@ -509,7 +508,7 @@ export class VehiclesService {
     });
   }
 
-  async getVehiclesByStation(stationId: string, userId: number) {
+  async getVehiclesByStation(stationId: number, userId: number) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
     });
@@ -540,7 +539,7 @@ export class VehiclesService {
     return vehicles;
   }
 
-  async getAvailableVehicles(stationId: string, pickupDate: Date, returnDate: Date) {
+  async getAvailableVehicles(stationId: number, pickupDate: Date, returnDate: Date) {
     // Encontrar veículos disponíveis na estação que não têm conflitos de reserva/contrato
     const vehicles = await this.prisma.vehicle.findMany({
       where: {

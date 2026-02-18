@@ -1,4 +1,4 @@
-import { IsArray, IsDateString, IsOptional, IsString, IsInt, IsUUID } from 'class-validator';
+import { IsArray, IsDateString, IsOptional, IsString, IsInt } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class GrantPermissionDto {
@@ -30,8 +30,9 @@ export class MoveStaffDto {
   @Type(() => Number)
   userId: number;
 
-  @IsUUID()
-  newStationId: string;
+  @IsInt()
+  @Type(() => Number)
+  newStationId: number;
 
   @IsString()
   @IsOptional()

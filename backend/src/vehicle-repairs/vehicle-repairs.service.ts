@@ -17,7 +17,7 @@ export interface CreateRepairDto {
 }
 
 export interface CloseRepairDto {
-  closedAtStationId: string;
+  closedAtStationId: number;
   actualCost?: number;
   kmWhenClosed: number;
   notes?: string;
@@ -39,7 +39,7 @@ export class VehicleRepairsService {
   async openRepair(
     createDto: CreateRepairDto,
     openedBy: JwtUser,
-    stationId: string
+    stationId: number
   ) {
     // Verificar que o veículo existe
     const vehicle = await this.prisma.vehicle.findUnique({
@@ -80,7 +80,7 @@ export class VehicleRepairsService {
       },
       include: {
         vehicle: { select: { id: true, licensePlate: true, make: true, model: true } },
-        fromStation: { select: { id: true, code: true, name: true } },
+        fromStation: { select: { id: true, name: true } },
         openedBy: { select: { id: true, fullName: true } },
       },
     });
@@ -219,6 +219,11 @@ export class VehicleRepairsService {
     closeDto: CloseRepairDto,
     closedBy: JwtUser
   ) {
+    const closedAtStationId = Number(closeDto.closedAtStationId);
+    if (Number.isNaN(closedAtStationId)) {
+      throw new BadRequestException('closedAtStationId must be a number');
+    }
+
     const repair = await this.prisma.vehicleRepair.findUnique({
       where: { id: repairId },
       include: {
@@ -254,7 +259,7 @@ export class VehicleRepairsService {
 
     // Validar estação de fechamento
     const closedAtStation = await this.prisma.station.findUnique({
-      where: { id: closeDto.closedAtStationId },
+      where: { id: closedAtStationId },
     });
 
     if (!closedAtStation) {
@@ -270,7 +275,7 @@ export class VehicleRepairsService {
           status: 'COMPLETED',
           closedAt: new Date(),
           closedById: closedBy.id,
-          closedAtStationId: closeDto.closedAtStationId,
+          closedAtStationId: closedAtStationId,
           actualCost: closeDto.actualCost,
           kmWhenClosed: closeDto.kmWhenClosed,
           notes: closeDto.notes,
@@ -281,7 +286,7 @@ export class VehicleRepairsService {
         },
         include: {
           vehicle: true,
-          closedAtStation: { select: { id: true, code: true, name: true } },
+          closedAtStation: { select: { id: true, name: true } },
           closedBy: { select: { id: true, fullName: true } },
         },
       });
@@ -291,7 +296,7 @@ export class VehicleRepairsService {
         where: { id: repair.vehicleId },
         data: {
           status: 'AVAILABLE',
-          stationId: closeDto.closedAtStationId,
+          stationId: closedAtStationId,
           currentKm: closeDto.kmWhenClosed,
         },
       });
@@ -310,8 +315,8 @@ export class VehicleRepairsService {
       where: { id: repairId },
       include: {
         vehicle: { select: { id: true, licensePlate: true, make: true, model: true } },
-        fromStation: { select: { id: true, code: true, name: true } },
-        closedAtStation: { select: { id: true, code: true, name: true } },
+        fromStation: { select: { id: true, name: true } },
+        closedAtStation: { select: { id: true, name: true } },
         openedBy: { select: { id: true, fullName: true } },
         closedBy: { select: { id: true, fullName: true } },
       },
@@ -334,8 +339,8 @@ export class VehicleRepairsService {
         ...(status && { status: status as any }),
       },
       include: {
-        fromStation: { select: { id: true, code: true, name: true } },
-        closedAtStation: { select: { id: true, code: true, name: true } },
+        fromStation: { select: { id: true, name: true } },
+        closedAtStation: { select: { id: true, name: true } },
         openedBy: { select: { id: true, fullName: true } },
         closedBy: { select: { id: true, fullName: true } },
       },
@@ -346,7 +351,7 @@ export class VehicleRepairsService {
   /**
    * Listar reparações abertas (status OPEN ou IN_PROGRESS)
    */
-  async getOpenRepairs(stationId: string) {
+  async getOpenRepairs(stationId: number) {
     return this.prisma.vehicleRepair.findMany({
       where: {
         fromStationId: stationId,

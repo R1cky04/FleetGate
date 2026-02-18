@@ -164,7 +164,7 @@ model User {
   employeeNumber    String?           @unique
   hireDate          DateTime?
   departmentId      String?
-  stationId         String?
+  stationId         Int?
   
   // Configurações
   profileImage      String?
@@ -238,16 +238,15 @@ model UserPermission {
 // ===== ORGANIZATIONAL =====
 
 model Station {
-  id              String      @id @default(uuid())
-  code            String      @unique
+  id              Int         @id @default(autoincrement())
   name            String
-  email           String
-  phone           String
+  email           String?
+  phone           String?
   
   // Endereço
-  address         String
-  city            String
-  postalCode      String
+  address         String?
+  city            String?
+  postalCode      String?
   country         String      @default("Portugal")
   latitude        Float?
   longitude       Float?
@@ -277,7 +276,6 @@ model Station {
   repairsClosed        VehicleRepair[] @relation("RepairClosedAt")
   recordLocks      RecordLock[]
   
-  @@index([code])
   @@index([isActive])
 }
 
@@ -341,7 +339,7 @@ model VehicleGroup {
 model Vehicle {
   id              Int             @id @default(autoincrement())
   groupId         String
-  stationId       String
+  stationId       Int
   
   // Identificação
   licensePlate    String          @unique
@@ -399,8 +397,8 @@ model Reservation {
   vehicleGroupId    String?
   
   // Localizações
-  pickupStationId   String
-  returnStationId   String
+  pickupStationId   Int
+  returnStationId   Int
   
   // Datas
   pickupDate        DateTime
@@ -478,8 +476,8 @@ model Contract {
   upgradeCost       Float             @default(0)
   
   // Localizações
-  pickupStationId   String
-  returnStationId   String
+  pickupStationId   Int
+  returnStationId   Int
   
   // Datas planejadas
   pickupDate        DateTime
@@ -668,8 +666,8 @@ model VehicleRepair {
   vehicleId       Int
   
   // Estações
-  fromStationId   String              // Estação onde foi marcado em reparo
-  closedAtStationId String?            // Estação onde foi fechado
+  fromStationId   Int                 // Estação onde foi marcado em reparo
+  closedAtStationId Int?               // Estação onde foi fechado
   
   // Status
   status          VehicleRepairStatus @default(OPEN)
@@ -730,8 +728,8 @@ model VehicleTransfer {
   vehicleId         Int
   
   // Estações
-  fromStationId     String
-  toStationId       String
+  fromStationId     Int
+  toStationId       Int
   
   // Condutor responsável
   driverId          Int
@@ -903,7 +901,7 @@ model RecordLock {
   entityType      String    // "Contract", "Reservation", "Vehicle"
   entityId        String    // ID do registo
   lockedBy        Int       // User ID que tem o lock
-  stationId       String    // Station onde o lock foi feito (multi-tenancy isolation)
+  stationId       Int       // Station onde o lock foi feito (multi-tenancy isolation)
   
   // Lock control
   acquiredAt      DateTime  @default(now())

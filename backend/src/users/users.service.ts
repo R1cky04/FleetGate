@@ -41,6 +41,12 @@ export class UsersService {
         ? await this.getNextEmployeeNumber()
         : undefined;
 
+      const dateOfBirth = this.parseDateValue(rest.dateOfBirth);
+      const hireDate = this.parseDateValue(rest.hireDate);
+      const licenseExpiry = this.parseDateValue(rest.licenseExpiry);
+      const licenseIssueDate = this.parseDateValue(rest.licenseIssueDate);
+      const idCardExpiry = this.parseDateValue(rest.idCardExpiry);
+
       const user = await this.prisma.user.create({
         data: {
           ...rest,
@@ -49,6 +55,11 @@ export class UsersService {
           fullName,
           userCode: normalizedUserCode,
           password: hashedPassword,
+          dateOfBirth,
+          hireDate,
+          licenseExpiry,
+          licenseIssueDate,
+          idCardExpiry,
           ...(autoEmployeeNumber ? { employeeNumber: autoEmployeeNumber } : {}),
           createdBy,
           status: UserStatus.ACTIVE,
@@ -113,7 +124,7 @@ export class UsersService {
   async findAll(filters?: {
     role?: UserRole;
     status?: UserStatus;
-    stationId?: string;
+    stationId?: number;
     customerType?: string;
     companyName?: string;
     brokerName?: string;
@@ -410,7 +421,7 @@ export class UsersService {
     return userWithoutPassword;
   }
 
-  async getStaffByStation(stationId: string) {
+  async getStaffByStation(stationId: number) {
     return this.findAll({
       stationId,
       status: UserStatus.ACTIVE,
@@ -419,7 +430,7 @@ export class UsersService {
 
   // ===== STATION VALIDATION =====
 
-  async validateStationAccess(userId: number, stationId: string): Promise<boolean> {
+  async validateStationAccess(userId: number, stationId: number): Promise<boolean> {
     const user = await this.findOne(userId);
 
     // IT tem acesso a todas as estações
@@ -445,7 +456,7 @@ export class UsersService {
     return false;
   }
 
-  async canManageStation(userId: number, stationId?: string): Promise<boolean> {
+  async canManageStation(userId: number, stationId?: number): Promise<boolean> {
     const user = await this.findOne(userId);
 
     // Apenas IT pode criar/deletar estações
@@ -520,6 +531,17 @@ export class UsersService {
         }),
       ),
     );
+  }
+
+  private parseDateValue(value?: string | Date | null) {
+    if (!value) return undefined;
+
+    if (value instanceof Date) {
+      return Number.isNaN(value.getTime()) ? undefined : value;
+    }
+
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? undefined : parsed;
   }
 
   private async getNextEmployeeNumber(): Promise<string> {

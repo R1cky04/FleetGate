@@ -1,9 +1,11 @@
 import { PartialType } from '@nestjs/mapped-types';
 import { CreateVehicleDto } from './create-vehicle.dto';
-import { IsOptional, IsString } from 'class-validator';
+import { IsOptional, IsInt } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class UpdateVehicleDto extends PartialType(CreateVehicleDto) {
-  @IsString()
+  @IsInt()
+  @Type(() => Number)
   @IsOptional()
-  stationId?: string; // Allow moving vehicles between stations
+  stationId?: number; // Allow moving vehicles between stations
 }

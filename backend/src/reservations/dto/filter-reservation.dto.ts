@@ -12,9 +12,10 @@ export class FilterReservationDto {
   @IsOptional()
   vehicleId?: number;
 
-  @IsString()
+  @IsInt()
+  @Type(() => Number)
   @IsOptional()
-  stationId?: string;
+  stationId?: number;
 
   @IsString()
   @IsOptional()
@@ -78,11 +79,13 @@ export class CancelReservationDto {
 }
 
 export class CheckAvailabilityDto {
-  @IsString()
-  pickupStationId: string;
+  @IsInt()
+  @Type(() => Number)
+  pickupStationId: number;
 
-  @IsString()
-  returnStationId: string;
+  @IsInt()
+  @Type(() => Number)
+  returnStationId: number;
 
   @IsDateString()
   pickupDate: string;

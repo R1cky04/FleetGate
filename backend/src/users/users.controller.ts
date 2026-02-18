@@ -39,7 +39,16 @@ export class UsersController {
     @Query('brokerName') brokerName?: string,
     @Query('search') search?: string,
   ) {
-    return this.usersService.findAll({ role, status, stationId, customerType, companyName, brokerName, search });
+    const stationIdValue = stationId ? Number(stationId) : undefined;
+    return this.usersService.findAll({
+      role,
+      status,
+      stationId: Number.isNaN(stationIdValue) ? undefined : stationIdValue,
+      customerType,
+      companyName,
+      brokerName,
+      search,
+    });
   }
 
   @Get(':id')
@@ -83,7 +92,7 @@ export class UsersController {
   }
 
   @Get('station/:stationId/staff')
-  getStaffByStation(@Param('stationId') stationId: string) {
+  getStaffByStation(@Param('stationId', ParseIntPipe) stationId: number) {
     return this.usersService.getStaffByStation(stationId);
   }
 }

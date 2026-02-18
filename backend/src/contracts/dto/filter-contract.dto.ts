@@ -132,9 +132,10 @@ export class FilterContractDto {
   @IsOptional()
   vehicleId?: number;
 
-  @IsString()
+  @IsInt()
+  @Type(() => Number)
   @IsOptional()
-  stationId?: string;
+  stationId?: number;
 
   @IsString()
   @IsOptional()

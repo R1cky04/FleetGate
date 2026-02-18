@@ -9,6 +9,7 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { StationsService } from './stations.service';
 import { CreateStationDto } from './dto/create-station.dto';
@@ -43,13 +44,13 @@ export class StationsController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
+  findOne(@Param('id', ParseIntPipe) id: number) {
     return this.stationsService.findOne(id);
   }
 
   @Patch(':id')
   update(
-    @Param('id') id: string,
+    @Param('id', ParseIntPipe) id: number,
     @Body() updateStationDto: UpdateStationDto,
     @CurrentUser() user: JwtUser,
   ) {
@@ -58,7 +59,7 @@ export class StationsController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  remove(@Param('id') id: string, @CurrentUser() user: JwtUser) {
+  remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: JwtUser) {
     return this.stationsService.remove(id, user.id);
   }
 }

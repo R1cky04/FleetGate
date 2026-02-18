@@ -6,11 +6,13 @@ export class CreateVehicleTransferDto {
   @Type(() => Number)
   vehicleId: number;
 
-  @IsString()
-  fromStationId: string;
+  @IsInt()
+  @Type(() => Number)
+  fromStationId: number;
 
-  @IsString()
-  toStationId: string;
+  @IsInt()
+  @Type(() => Number)
+  toStationId: number;
 
   @IsInt()
   @Type(() => Number)

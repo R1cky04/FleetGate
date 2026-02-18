@@ -1,4 +1,4 @@
-import { Controller, Post, Delete, Get, Param, Body, UseGuards, Patch } from '@nestjs/common';
+import { Controller, Post, Delete, Get, Param, Body, UseGuards, Patch, ParseIntPipe } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { CurrentUser } from '../../auth/current-user.decorator';
 import type { JwtUser } from '../../auth/types';
@@ -28,7 +28,7 @@ export class LocksController {
   async acquireEditLock(
     @Param('entityType') entityType: string,
     @Param('entityId') entityId: string,
-    @Param('stationId') stationId: string,
+    @Param('stationId', ParseIntPipe) stationId: number,
     @CurrentUser() user: JwtUser
   ) {
     return await this.lockService.acquireLock({
@@ -55,7 +55,7 @@ export class LocksController {
   async acquireViewLock(
     @Param('entityType') entityType: string,
     @Param('entityId') entityId: string,
-    @Param('stationId') stationId: string,
+    @Param('stationId', ParseIntPipe) stationId: number,
     @CurrentUser() user: JwtUser
   ) {
     // Para view mode, apenas registar sem bloquear
@@ -73,7 +73,7 @@ export class LocksController {
   async renewLock(
     @Param('entityType') entityType: string,
     @Param('entityId') entityId: string,
-    @Param('stationId') stationId: string,
+    @Param('stationId', ParseIntPipe) stationId: number,
     @Body() body: { durationSeconds?: number },
     @CurrentUser() user: JwtUser
   ) {
@@ -97,7 +97,7 @@ export class LocksController {
   async releaseLock(
     @Param('entityType') entityType: string,
     @Param('entityId') entityId: string,
-    @Param('stationId') stationId: string,
+    @Param('stationId', ParseIntPipe) stationId: number,
     @CurrentUser() user: JwtUser
   ) {
     await this.lockService.releaseLock(entityType, entityId, stationId, user.id);
@@ -127,7 +127,7 @@ export class LocksController {
   async checkLock(
     @Param('entityType') entityType: string,
     @Param('entityId') entityId: string,
-    @Param('stationId') stationId: string
+    @Param('stationId', ParseIntPipe) stationId: number
   ) {
     return await this.lockService.getLockInfo(entityType, entityId, stationId);
   }
