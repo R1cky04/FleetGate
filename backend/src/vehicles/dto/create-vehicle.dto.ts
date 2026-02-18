@@ -77,5 +77,17 @@ export class CreateVehicleDto {
 
   @IsBoolean()
   @IsOptional()
+  isStolen?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  isSold?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  isBlocked?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
   isActive?: boolean;
 }

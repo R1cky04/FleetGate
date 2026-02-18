@@ -18,8 +18,8 @@ export class StationIsolationGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const user = request.user as JwtUser;
 
-    // IT admin pode acessar tudo
-    if (user.role === 'IT') {
+    // DEV/IT podem acessar tudo
+    if (user.role === 'IT' || user.role === 'DEV') {
       return true;
     }
 
@@ -50,7 +50,7 @@ export class RecordStationAccessGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const user = request.user as JwtUser;
 
-    if (user.role === 'IT') {
+    if (user.role === 'IT' || user.role === 'DEV') {
       return true;
     }
 

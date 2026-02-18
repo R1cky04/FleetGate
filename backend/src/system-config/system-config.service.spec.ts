@@ -15,14 +15,14 @@ jest.mock('fs', () => {
 const fs = require('fs').promises;
 
 describe('SystemConfigService (unit)', () => {
-  const itUser = { id: 1, role: UserRole.IT };
+  const devUser = { id: 1, role: UserRole.DEV };
   let prisma: any;
   let service: SystemConfigService;
 
   beforeEach(() => {
     prisma = {
       user: {
-        findUnique: jest.fn().mockResolvedValue(itUser),
+        findUnique: jest.fn().mockResolvedValue(devUser),
       },
       systemConfig: {
         findFirst: jest.fn(),
@@ -41,7 +41,7 @@ describe('SystemConfigService (unit)', () => {
     prisma.systemConfig.findFirst.mockResolvedValue(null);
     fs.readFile.mockResolvedValue(JSON.stringify(fileConfig));
 
-    const result = await service.getConfig(itUser.id);
+    const result = await service.getConfig(devUser.id);
 
     expect(result).toEqual(fileConfig);
     expect(prisma.systemConfig.create).toHaveBeenCalled();
@@ -57,14 +57,14 @@ describe('SystemConfigService (unit)', () => {
       configJson: JSON.stringify(dbConfig),
     });
 
-    const result = await service.getConfig(itUser.id);
+    const result = await service.getConfig(devUser.id);
 
     expect(result).toEqual(dbConfig);
     expect(fs.writeFile).toHaveBeenCalled();
   });
 
   it('updates config and syncs file + DB', async () => {
-    const updated = await service.updateConfig(itUser.id, { version: '3.0.0' });
+    const updated = await service.updateConfig(devUser.id, { version: '3.0.0' });
 
     expect(updated.version).toBe('3.0.0');
     expect(fs.writeFile).toHaveBeenCalled();

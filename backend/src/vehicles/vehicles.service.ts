@@ -19,8 +19,8 @@ export class VehiclesService {
       throw new NotFoundException('Usuário não encontrado');
     }
 
-    // Apenas FLEET, STAFF, ADMIN, IT podem criar veículos
-    const allowedRoles: UserRole[] = [UserRole.FLEET, UserRole.STAFF, UserRole.ADMIN, UserRole.IT];
+    // Apenas FLEET, STAFF, ADMIN, IT, DEV podem criar veículos
+    const allowedRoles: UserRole[] = [UserRole.FLEET, UserRole.STAFF, UserRole.ADMIN, UserRole.IT, UserRole.DEV];
     if (!allowedRoles.includes(user.role as UserRole)) {
       throw new ForbiddenException('Você não tem permissão para criar veículos');
     }
@@ -133,6 +133,18 @@ export class VehiclesService {
 
     if (filters.year) {
       where.year = filters.year;
+    }
+
+    if (filters.isStolen !== undefined) {
+      where.isStolen = filters.isStolen;
+    }
+
+    if (filters.isSold !== undefined) {
+      where.isSold = filters.isSold;
+    }
+
+    if (filters.isBlocked !== undefined) {
+      where.isBlocked = filters.isBlocked;
     }
 
     if (search) {
@@ -337,8 +349,8 @@ export class VehiclesService {
       throw new NotFoundException('Usuário não encontrado');
     }
 
-    // Apenas FLEET, STAFF, ADMIN, IT podem atualizar veículos
-    const allowedRoles: UserRole[] = [UserRole.FLEET, UserRole.STAFF, UserRole.ADMIN, UserRole.IT];
+    // Apenas FLEET, STAFF, ADMIN, IT, DEV podem atualizar veículos
+    const allowedRoles: UserRole[] = [UserRole.FLEET, UserRole.STAFF, UserRole.ADMIN, UserRole.IT, UserRole.DEV];
     if (!allowedRoles.includes(user.role as UserRole)) {
       throw new ForbiddenException('Você não tem permissão para atualizar veículos');
     }
@@ -364,10 +376,10 @@ export class VehiclesService {
 
     // Se estiver movendo o veículo entre estações
     if (updateVehicleDto.stationId && updateVehicleDto.stationId !== vehicle.stationId) {
-      // Apenas ADMIN e IT podem mover veículos
-      const adminRoles: UserRole[] = [UserRole.ADMIN, UserRole.IT];
+      // Apenas ADMIN, IT e DEV podem mover veículos
+      const adminRoles: UserRole[] = [UserRole.ADMIN, UserRole.IT, UserRole.DEV];
       if (!adminRoles.includes(user.role as UserRole)) {
-        throw new ForbiddenException('Apenas ADMIN e IT podem mover veículos entre estações');
+        throw new ForbiddenException('Apenas ADMIN, IT e DEV podem mover veículos entre estações');
       }
 
       // Verificar se há contratos ou reservas ativas
@@ -462,9 +474,9 @@ export class VehiclesService {
       throw new NotFoundException('Usuário não encontrado');
     }
 
-    // Apenas IT pode deletar veículos
-    if (user.role !== UserRole.IT) {
-      throw new ForbiddenException('Apenas IT pode deletar veículos');
+    // Apenas DEV/IT podem deletar veículos
+    if (user.role !== UserRole.DEV && user.role !== UserRole.IT) {
+      throw new ForbiddenException('Apenas DEV/IT podem deletar veículos');
     }
 
     const vehicle = await this.prisma.vehicle.findUnique({

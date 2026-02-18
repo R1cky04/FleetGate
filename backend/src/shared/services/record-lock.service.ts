@@ -268,8 +268,8 @@ export class RecordLockService {
       return false;
     }
 
-    // IT pode acessar tudo
-    if (user.role === 'IT') {
+    // DEV/IT podem acessar tudo
+    if (user.role === 'IT' || user.role === 'DEV') {
       return true;
     }
 

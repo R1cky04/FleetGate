@@ -24,6 +24,25 @@ async function main() {
   await prisma.department.deleteMany();
   await prisma.damageType.deleteMany();
 
+  // Ensure default tenant exists for shared mode deployments
+  const defaultTenant = await prisma.tenant.upsert({
+    where: { code: 'FLEETGATE' },
+    update: {
+      name: 'FleetGate Main Tenant',
+      dbMode: 'SHARED',
+      isActive: true,
+      notes: 'Default company for local/dev seed data',
+    },
+    create: {
+      code: 'FLEETGATE',
+      name: 'FleetGate Main Tenant',
+      dbMode: 'SHARED',
+      isActive: true,
+      notes: 'Default company for local/dev seed data',
+    },
+  });
+  console.log(`🏷️ Default tenant ready: ${defaultTenant.code} (#${defaultTenant.id})`);
+
   // 1. Create Departments
   console.log('📁 Creating departments...');
   const departments = await Promise.all([
@@ -138,8 +157,28 @@ async function main() {
 
   // 3. Create Users
   console.log('👥 Creating users...');
+  const hashedDevPassword = await bcrypt.hash('dev1234', 10);
   const hashedITPassword = await bcrypt.hash('it1234', 10);
   const hashedPassword = await bcrypt.hash('Password123!', 10);
+
+  // DEV User (owner) - login only, sem ficha cliente
+  const devUser = await prisma.user.create({
+    data: {
+      userCode: 'DEV',
+      email: 'dev@fleetgate.pt',
+      password: hashedDevPassword,
+      role: 'DEV',
+      status: 'ACTIVE',
+      firstName: 'Dev',
+      lastName: 'Owner',
+      fullName: 'Dev Owner',
+      phone: '+351910000000',
+      emailVerified: true,
+      phoneVerified: true,
+      acceptedTerms: true,
+    },
+  });
+  console.log('✅ DEV user created: DEV / dev1234');
 
   // IT User
   const itUser = await prisma.user.create({
@@ -157,6 +196,18 @@ async function main() {
       emailVerified: true,
       phoneVerified: true,
       acceptedTerms: true,
+      clientProfile: {
+        create: {
+          customerType: 'INDIVIDUAL',
+        },
+      },
+      staffProfile: {
+        create: {
+          employeeNumber: '1',
+          stationId: lisbon.id,
+          departmentId: departments[0].id,
+        },
+      },
     },
   });
 
@@ -176,6 +227,18 @@ async function main() {
       emailVerified: true,
       phoneVerified: true,
       acceptedTerms: true,
+      clientProfile: {
+        create: {
+          customerType: 'INDIVIDUAL',
+        },
+      },
+      staffProfile: {
+        create: {
+          employeeNumber: '2',
+          stationId: lisbon.id,
+          departmentId: departments[1].id,
+        },
+      },
     },
   });
 
@@ -195,6 +258,18 @@ async function main() {
       emailVerified: true,
       phoneVerified: true,
       acceptedTerms: true,
+      clientProfile: {
+        create: {
+          customerType: 'INDIVIDUAL',
+        },
+      },
+      staffProfile: {
+        create: {
+          employeeNumber: '3',
+          stationId: lisbon.id,
+          departmentId: departments[2].id,
+        },
+      },
     },
   });
 
@@ -214,6 +289,18 @@ async function main() {
       emailVerified: true,
       phoneVerified: true,
       acceptedTerms: true,
+      clientProfile: {
+        create: {
+          customerType: 'INDIVIDUAL',
+        },
+      },
+      staffProfile: {
+        create: {
+          employeeNumber: '4',
+          stationId: porto.id,
+          departmentId: departments[2].id,
+        },
+      },
     },
   });
 
@@ -233,6 +320,18 @@ async function main() {
       emailVerified: true,
       phoneVerified: true,
       acceptedTerms: true,
+      clientProfile: {
+        create: {
+          customerType: 'INDIVIDUAL',
+        },
+      },
+      staffProfile: {
+        create: {
+          employeeNumber: '5',
+          stationId: faro.id,
+          departmentId: departments[1].id,
+        },
+      },
     },
   });
 
@@ -242,31 +341,34 @@ async function main() {
       userCode: 'CLI0001',
       role: 'CLIENT',
       status: 'ACTIVE',
-      customerType: 'INDIVIDUAL',
       firstName: 'António',
       lastName: 'Oliveira',
       fullName: 'António Oliveira',
       email: 'antonio@example.com',
       phone: '+351920000001',
       cpf: '66666666666',
-      nif: '666666666',
       dateOfBirth: new Date('1985-06-15'),
       address: 'Rua Cliente, 10',
       city: 'Lisboa',
       postalCode: '1100-010',
       country: 'Portugal',
-      licenseNumber: 'L123456789',
-      licenseExpiry: new Date('2027-06-15'),
-      licenseIssueDate: new Date('2005-06-15'),
-      licenseCountry: 'Portugal',
-      idCardNumber: 'ID123456',
-      idCardExpiry: new Date('2028-06-15'),
       emailVerified: true,
       phoneVerified: true,
       acceptedTerms: true,
-      clientRating: 4.8,
-      totalRentals: 12,
-      // stationId removido para cliente
+      clientProfile: {
+        create: {
+          customerType: 'INDIVIDUAL',
+          nif: '666666666',
+          licenseNumber: 'L123456789',
+          licenseExpiry: new Date('2027-06-15'),
+          licenseIssueDate: new Date('2005-06-15'),
+          licenseCountry: 'Portugal',
+          idCardNumber: 'ID123456',
+          idCardExpiry: new Date('2028-06-15'),
+          clientRating: 4.8,
+          totalRentals: 12,
+        },
+      },
     },
   });
 
@@ -275,32 +377,36 @@ async function main() {
       userCode: 'CLI0002',
       role: 'CLIENT',
       status: 'ACTIVE',
-      customerType: 'INDIVIDUAL',
       firstName: 'Beatriz',
       lastName: 'Mendes',
       fullName: 'Beatriz Mendes',
       email: 'beatriz@example.com',
       phone: '+351920000002',
       cpf: '77777777777',
-      nif: '777777777',
       dateOfBirth: new Date('1990-11-22'),
       address: 'Rua Cliente, 20',
       city: 'Porto',
       postalCode: '4100-020',
       country: 'Portugal',
-      licenseNumber: 'L987654321',
-      licenseExpiry: new Date('2028-11-22'),
-      licenseIssueDate: new Date('2008-11-22'),
-      licenseCountry: 'Portugal',
-      idCardNumber: 'ID987654',
-      idCardExpiry: new Date('2029-11-22'),
       emailVerified: true,
       phoneVerified: true,
       acceptedTerms: true,
-      clientRating: 4.5,
-      totalRentals: 8,
-      // stationId removido para cliente
+      clientProfile: {
+        create: {
+          customerType: 'INDIVIDUAL',
+          nif: '777777777',
+          licenseNumber: 'L987654321',
+          licenseExpiry: new Date('2028-11-22'),
+          licenseIssueDate: new Date('2008-11-22'),
+          licenseCountry: 'Portugal',
+          idCardNumber: 'ID987654',
+          idCardExpiry: new Date('2029-11-22'),
+          clientRating: 4.5,
+          totalRentals: 8,
+        },
+      },
     },
+    include: { clientProfile: true },
   });
 
   // Cliente blacklisted
@@ -309,31 +415,35 @@ async function main() {
       userCode: 'CLI0003',
       role: 'CLIENT',
       status: 'SUSPENDED',
-      customerType: 'INDIVIDUAL',
       firstName: 'Manuel',
       lastName: 'Problemas',
       fullName: 'Manuel Problemas',
       email: 'manuel@example.com',
       phone: '+351920000003',
       cpf: '88888888888',
-      nif: '888888888',
       dateOfBirth: new Date('1980-01-01'),
       address: 'Rua Problema, 1',
       city: 'Lisboa',
       postalCode: '1000-100',
       country: 'Portugal',
-      licenseNumber: 'L111111111',
-      licenseExpiry: new Date('2026-01-01'),
-      licenseIssueDate: new Date('2000-01-01'),
-      licenseCountry: 'Portugal',
       emailVerified: true,
       acceptedTerms: true,
-      isBlacklisted: true,
-      blacklistReason: 'Múltiplos danos não reportados e atrasos frequentes',
-      blacklistedAt: new Date('2025-12-01'),
-      blacklistedBy: adminLisboa.id,
-      clientRating: 1.5,
-      totalRentals: 8,
+      clientProfile: {
+        create: {
+          customerType: 'INDIVIDUAL',
+          nif: '888888888',
+          licenseNumber: 'L111111111',
+          licenseExpiry: new Date('2026-01-01'),
+          licenseIssueDate: new Date('2000-01-01'),
+          licenseCountry: 'Portugal',
+          isBlacklisted: true,
+          blacklistReason: 'Múltiplos danos não reportados e atrasos frequentes',
+          blacklistedAt: new Date('2025-12-01'),
+          blacklistedBy: adminLisboa.id,
+          clientRating: 1.5,
+          totalRentals: 8,
+        },
+      },
     },
   });
 
@@ -350,21 +460,216 @@ async function main() {
       fullName: 'Admin User',
       phone: '+351910000000',
       cpf: '00000000000',
-      nif: '000000000',
       dateOfBirth: new Date('1990-01-01'),
       address: 'Admin Street, 1',
       city: 'Lisboa',
       postalCode: '1000-001',
       country: 'Portugal',
-      employeeNumber: 'ADMIN',
-      hireDate: new Date('2020-01-01'),
-      departmentId: departments[0].id,
+      stationId: lisbon.id,
       emailVerified: true,
       phoneVerified: true,
       acceptedTerms: true,
+      clientProfile: {
+        create: {
+          nif: '000000000',
+          customerType: 'INDIVIDUAL',
+        },
+      },
+      staffProfile: {
+        create: {
+          employeeNumber: 'ADMIN',
+          hireDate: new Date('2020-01-01'),
+          departmentId: departments[0].id,
+          stationId: lisbon.id,
+        },
+      },
     },
   });
   console.log('✅ Admin user created: ADMIN / admin');
+
+  // Extra users (5 staff with login + client dossier, 5 clients with dossier)
+  const extraUsers = [
+    {
+      userCode: 'STF0101',
+      email: 'staff.extra1@fleetgate.pt',
+      role: 'STAFF' as const,
+      firstName: 'Rui',
+      lastName: 'Nogueira',
+      phone: '+351930000101',
+      cpf: '93000000101',
+      nif: '930000101',
+      stationId: lisbon.id,
+      city: 'Lisboa',
+    },
+    {
+      userCode: 'STF0102',
+      email: 'staff.extra2@fleetgate.pt',
+      role: 'STAFF' as const,
+      firstName: 'Ines',
+      lastName: 'Barbosa',
+      phone: '+351930000102',
+      cpf: '93000000102',
+      nif: '930000102',
+      stationId: porto.id,
+      city: 'Porto',
+    },
+    {
+      userCode: 'FLT0101',
+      email: 'fleet.extra1@fleetgate.pt',
+      role: 'FLEET' as const,
+      firstName: 'Tomás',
+      lastName: 'Pinto',
+      phone: '+351930000103',
+      cpf: '93000000103',
+      nif: '930000103',
+      stationId: faro.id,
+      city: 'Faro',
+    },
+    {
+      userCode: 'ADM0101',
+      email: 'admin.extra1@fleetgate.pt',
+      role: 'ADMIN' as const,
+      firstName: 'Helena',
+      lastName: 'Correia',
+      phone: '+351930000104',
+      cpf: '93000000104',
+      nif: '930000104',
+      stationId: lisbon.id,
+      city: 'Lisboa',
+    },
+    {
+      userCode: 'STF0103',
+      email: 'staff.extra3@fleetgate.pt',
+      role: 'STAFF' as const,
+      firstName: 'Miguel',
+      lastName: 'Faria',
+      phone: '+351930000105',
+      cpf: '93000000105',
+      nif: '930000105',
+      stationId: porto.id,
+      city: 'Porto',
+    },
+    {
+      userCode: 'CLI0101',
+      email: 'cliente.extra1@fleetgate.pt',
+      role: 'CLIENT' as const,
+      firstName: 'Laura',
+      lastName: 'Azevedo',
+      phone: '+351930000106',
+      cpf: '93000000106',
+      nif: '930000106',
+      stationId: undefined,
+      city: 'Coimbra',
+    },
+    {
+      userCode: 'CLI0102',
+      email: 'cliente.extra2@fleetgate.pt',
+      role: 'CLIENT' as const,
+      firstName: 'Bruno',
+      lastName: 'Reis',
+      phone: '+351930000107',
+      cpf: '93000000107',
+      nif: '930000107',
+      stationId: undefined,
+      city: 'Braga',
+    },
+    {
+      userCode: 'CLI0103',
+      email: 'cliente.extra3@fleetgate.pt',
+      role: 'CLIENT' as const,
+      firstName: 'Sofia',
+      lastName: 'Leal',
+      phone: '+351930000108',
+      cpf: '93000000108',
+      nif: '930000108',
+      stationId: undefined,
+      city: 'Setúbal',
+    },
+    {
+      userCode: 'CLI0104',
+      email: 'cliente.extra4@fleetgate.pt',
+      role: 'CLIENT' as const,
+      firstName: 'André',
+      lastName: 'Lopes',
+      phone: '+351930000109',
+      cpf: '93000000109',
+      nif: '930000109',
+      stationId: undefined,
+      city: 'Aveiro',
+    },
+    {
+      userCode: 'CLI0105',
+      email: 'cliente.extra5@fleetgate.pt',
+      role: 'CLIENT' as const,
+      firstName: 'Marta',
+      lastName: 'Fonseca',
+      phone: '+351930000110',
+      cpf: '93000000110',
+      nif: '930000110',
+      stationId: undefined,
+      city: 'Évora',
+    },
+  ];
+
+  const extraUsersCreated = await Promise.all(
+    extraUsers.map(async (item, index) => {
+      const isClient = item.role === 'CLIENT';
+      const employeeNumber = !isClient ? String(1000 + index + 1) : undefined;
+      const dateBase = `199${(index % 5) + 1}-0${(index % 8) + 1}-15`;
+
+      return prisma.user.create({
+        data: {
+          userCode: item.userCode,
+          email: item.email,
+          password: !isClient ? hashedPassword : undefined,
+          role: item.role,
+          status: 'ACTIVE',
+          firstName: item.firstName,
+          lastName: item.lastName,
+          fullName: `${item.firstName} ${item.lastName}`,
+          phone: item.phone,
+          cpf: item.cpf,
+          dateOfBirth: new Date(dateBase),
+          address: `Rua ${item.firstName}, ${10 + index}`,
+          city: item.city,
+          postalCode: `40${index}0-0${index}`,
+          country: 'Portugal',
+          stationId: item.stationId,
+          acceptedTerms: true,
+          emailVerified: true,
+          phoneVerified: true,
+          clientProfile: {
+            create: {
+              nif: item.nif,
+              licenseNumber: `CP${930000 + index}`,
+              licenseExpiry: new Date('2029-12-31'),
+              licenseIssueDate: new Date('2015-01-01'),
+              licenseCountry: 'Portugal',
+              idCardNumber: `CPID${index + 1}`,
+              idCardExpiry: new Date('2030-12-31'),
+              customerType: 'INDIVIDUAL',
+              clientRating: 4.2,
+              totalRentals: 0,
+            },
+          },
+          ...(isClient
+            ? {}
+            : {
+                staffProfile: {
+                  create: {
+                    employeeNumber: employeeNumber!,
+                    hireDate: new Date('2023-01-10'),
+                    stationId: item.stationId!,
+                    departmentId: departments[1].id,
+                  },
+                },
+              }),
+        },
+      });
+    }),
+  );
+
+  console.log(`✅ Extra users created: ${extraUsersCreated.length}`);
 
   // 4. Create Vehicle Groups
   console.log('🚗 Creating vehicle groups...');
@@ -979,14 +1284,14 @@ async function main() {
       email: client2.email,
       phone: client2.phone,
       cpf: client2.cpf,
-      nif: client2.nif,
+      nif: client2.clientProfile?.nif,
       dateOfBirth: client2.dateOfBirth!,
-      licenseNumber: client2.licenseNumber!,
-      licenseExpiry: client2.licenseExpiry!,
-      licenseIssueDate: client2.licenseIssueDate!,
-      licenseCountry: client2.licenseCountry!,
-      idCardNumber: client2.idCardNumber!,
-      idCardExpiry: client2.idCardExpiry!,
+      licenseNumber: client2.clientProfile?.licenseNumber!,
+      licenseExpiry: client2.clientProfile?.licenseExpiry!,
+      licenseIssueDate: client2.clientProfile?.licenseIssueDate!,
+      licenseCountry: client2.clientProfile?.licenseCountry!,
+      idCardNumber: client2.clientProfile?.idCardNumber!,
+      idCardExpiry: client2.clientProfile?.idCardExpiry!,
       address: client2.address,
       city: client2.city,
       postalCode: client2.postalCode,
@@ -1281,6 +1586,30 @@ async function main() {
     }),
   ]);
 
+  // Multi-tenant finalization: assign company/tenant id to all seeded records
+  await Promise.all([
+    prisma.user.updateMany({ where: { tenantId: null }, data: { tenantId: defaultTenant.id } }),
+    prisma.clientProfile.updateMany({ where: { tenantId: null }, data: { tenantId: defaultTenant.id } }),
+    prisma.staffProfile.updateMany({ where: { tenantId: null }, data: { tenantId: defaultTenant.id } }),
+    prisma.userPermission.updateMany({ where: { tenantId: null }, data: { tenantId: defaultTenant.id } }),
+    prisma.station.updateMany({ where: { tenantId: null }, data: { tenantId: defaultTenant.id } }),
+    prisma.department.updateMany({ where: { tenantId: null }, data: { tenantId: defaultTenant.id } }),
+    prisma.vehicleGroup.updateMany({ where: { tenantId: null }, data: { tenantId: defaultTenant.id } }),
+    prisma.vehicle.updateMany({ where: { tenantId: null }, data: { tenantId: defaultTenant.id } }),
+    prisma.reservation.updateMany({ where: { tenantId: null }, data: { tenantId: defaultTenant.id } }),
+    prisma.contract.updateMany({ where: { tenantId: null }, data: { tenantId: defaultTenant.id } }),
+    prisma.payment.updateMany({ where: { tenantId: null }, data: { tenantId: defaultTenant.id } }),
+    prisma.maintenance.updateMany({ where: { tenantId: null }, data: { tenantId: defaultTenant.id } }),
+    prisma.vehicleRepair.updateMany({ where: { tenantId: null }, data: { tenantId: defaultTenant.id } }),
+    prisma.vehicleTransfer.updateMany({ where: { tenantId: null }, data: { tenantId: defaultTenant.id } }),
+    prisma.additionalDriver.updateMany({ where: { tenantId: null }, data: { tenantId: defaultTenant.id } }),
+    prisma.damageType.updateMany({ where: { tenantId: null }, data: { tenantId: defaultTenant.id } }),
+    prisma.notification.updateMany({ where: { tenantId: null }, data: { tenantId: defaultTenant.id } }),
+    prisma.activityLog.updateMany({ where: { tenantId: null }, data: { tenantId: defaultTenant.id } }),
+    prisma.recordLock.updateMany({ where: { tenantId: null }, data: { tenantId: defaultTenant.id } }),
+    prisma.systemConfig.updateMany({ where: { tenantId: null }, data: { tenantId: defaultTenant.id } }),
+  ]);
+
   console.log('✅ Seed completed successfully!');
   console.log('\n📊 Summary:');
   console.log(`- Departments: 3`);
@@ -1299,6 +1628,7 @@ async function main() {
   console.log(`- User Permissions: 4`);
   console.log('\n🔑 Test Credentials:');
   console.log('IT: it@fleetgate.pt / it1234');
+  console.log('DEV: DEV / dev1234 (companyCode: FLEETGATE)');
   console.log('Admin Lisboa: admin.lisboa@fleetgate.pt / Password123!');
   console.log('Staff Lisboa: staff.lisboa@fleetgate.pt / Password123!');
   console.log('Staff Porto: staff.porto@fleetgate.pt / Password123!');

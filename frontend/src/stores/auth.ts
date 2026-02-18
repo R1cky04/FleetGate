@@ -8,6 +8,8 @@ interface User {
   name: string
   userCode?: string
   role: string
+  companyCode?: string
+  tenantDbMode?: 'SHARED' | 'DEDICATED'
 }
 
 const parseUserFromToken = (jwtToken: string): User | null => {
@@ -24,6 +26,8 @@ const parseUserFromToken = (jwtToken: string): User | null => {
       name: payload?.userCode || payload?.email || 'User',
       userCode: payload?.userCode || '',
       role: payload?.role || 'USER',
+      companyCode: payload?.companyCode || '',
+      tenantDbMode: payload?.tenantDbMode || 'SHARED',
     }
   } catch {
     return null

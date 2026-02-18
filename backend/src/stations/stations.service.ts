@@ -9,7 +9,7 @@ export class StationsService {
   constructor(private prisma: PrismaService) {}
 
   async create(createStationDto: CreateStationDto, createdById: number) {
-    // Validar que apenas IT pode criar estações
+    // Validar que apenas DEV/IT podem criar estações
     const creator = await this.prisma.user.findUnique({
       where: { id: createdById },
     });
@@ -18,8 +18,8 @@ export class StationsService {
       throw new NotFoundException('Usuário não encontrado');
     }
 
-    if (creator.role !== UserRole.IT) {
-      throw new ForbiddenException('Apenas IT pode criar estações');
+    if (creator.role !== UserRole.DEV && creator.role !== UserRole.IT) {
+      throw new ForbiddenException('Apenas DEV/IT podem criar estações');
     }
 
     const station = await this.prisma.station.create({
@@ -55,6 +55,11 @@ export class StationsService {
     return this.prisma.station.findMany({
       where,
       include: {
+        tenant: {
+          select: {
+            code: true,
+          },
+        },
         _count: {
           select: {
             users: true,
@@ -118,9 +123,9 @@ export class StationsService {
       throw new NotFoundException('Usuário não encontrado');
     }
 
-    // IT pode atualizar qualquer estação
+    // DEV/IT podem atualizar qualquer estação
     // ADMIN só pode atualizar sua própria estação
-    if (updater.role !== UserRole.IT) {
+    if (updater.role !== UserRole.DEV && updater.role !== UserRole.IT) {
       if (updater.role !== UserRole.ADMIN || updater.stationId !== id) {
         throw new ForbiddenException('Você não tem permissão para atualizar esta estação');
       }
@@ -141,7 +146,7 @@ export class StationsService {
   async remove(id: number, deletedById: number) {
     await this.findOne(id);
 
-    // Apenas IT pode deletar estações
+    // Apenas DEV/IT podem deletar estações
     const deleter = await this.prisma.user.findUnique({
       where: { id: deletedById },
     });
@@ -150,8 +155,8 @@ export class StationsService {
       throw new NotFoundException('Usuário não encontrado');
     }
 
-    if (deleter.role !== UserRole.IT) {
-      throw new ForbiddenException('Apenas IT pode deletar estações');
+    if (deleter.role !== UserRole.DEV && deleter.role !== UserRole.IT) {
+      throw new ForbiddenException('Apenas DEV/IT podem deletar estações');
     }
 
     // Verificar se há usuários ou veículos associados

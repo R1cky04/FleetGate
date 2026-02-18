@@ -3,23 +3,43 @@ import { PrismaService } from '../prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { GrantPermissionDto, MoveStaffDto, RevokePermissionDto } from './dto/user-permissions.dto';
-import { UserRole, UserStatus, DEFAULT_PERMISSIONS, ROLE_HIERARCHY, Permission } from './enums/user-role.enum';
+import { UserRole, UserStatus, DEFAULT_PERMISSIONS, Permission } from './enums/user-role.enum';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UsersService {
   constructor(private prisma: PrismaService) {}
 
+  private readonly userInclude = {
+    tenant: {
+      select: {
+        code: true,
+      },
+    },
+    station: true,
+    clientProfile: true,
+    staffProfile: {
+      include: {
+        station: true,
+        department: true,
+      },
+    },
+    permissions: {
+      where: { isActive: true },
+    },
+  } as const;
+
   async create(createUserDto: CreateUserDto, createdBy?: number) {
     try {
-      const { password, firstName, lastName, userCode, employeeNumber: _employeeNumber, ...rest } = createUserDto;
+      const dto = createUserDto as any;
+      const { password, firstName, lastName, userCode } = createUserDto;
 
       // Validações específicas por role
       await this.validateUserRole(createUserDto);
 
       // Hash da senha se fornecida (não obrigatória para CLIENT)
       let hashedPassword: string | undefined;
-      if (password) {
+      if (password && createUserDto.role !== UserRole.CLIENT) {
         hashedPassword = await bcrypt.hash(password, 10);
       }
 
@@ -37,38 +57,81 @@ export class UsersService {
       // Criar fullName
       const fullName = `${firstName} ${lastName}`;
       const normalizedUserCode = userCode.toUpperCase();
-      const autoEmployeeNumber = createUserDto.role !== UserRole.CLIENT
+      const autoEmployeeNumber = [UserRole.STAFF, UserRole.ADMIN, UserRole.FLEET, UserRole.IT].includes(createUserDto.role)
         ? await this.getNextEmployeeNumber()
         : undefined;
 
-      const dateOfBirth = this.parseDateValue(rest.dateOfBirth);
-      const hireDate = this.parseDateValue(rest.hireDate);
-      const licenseExpiry = this.parseDateValue(rest.licenseExpiry);
-      const licenseIssueDate = this.parseDateValue(rest.licenseIssueDate);
-      const idCardExpiry = this.parseDateValue(rest.idCardExpiry);
+      const dateOfBirth = this.parseDateValue(dto.dateOfBirth);
+      const hireDate = this.parseDateValue(dto.hireDate);
+      const licenseExpiry = this.parseDateValue(dto.licenseExpiry);
+      const licenseIssueDate = this.parseDateValue(dto.licenseIssueDate);
+      const idCardExpiry = this.parseDateValue(dto.idCardExpiry);
 
       const user = await this.prisma.user.create({
         data: {
-          ...rest,
+          email: dto.email,
+          role: dto.role,
+          status: UserStatus.ACTIVE,
           firstName,
           lastName,
           fullName,
+          phone: dto.phone,
+          alternativePhone: dto.alternativePhone,
+          cpf: dto.cpf,
           userCode: normalizedUserCode,
           password: hashedPassword,
           dateOfBirth,
-          hireDate,
-          licenseExpiry,
-          licenseIssueDate,
-          idCardExpiry,
-          ...(autoEmployeeNumber ? { employeeNumber: autoEmployeeNumber } : {}),
+          address: dto.address,
+          city: dto.city,
+          postalCode: dto.postalCode,
+          country: dto.country || 'Portugal',
+          stationId: dto.stationId,
+          profileImage: dto.profileImage,
+          emailVerified: dto.emailVerified ?? false,
+          phoneVerified: dto.phoneVerified ?? false,
+          acceptedTerms: dto.acceptedTerms ?? false,
+          acceptedMarketing: dto.acceptedMarketing ?? false,
           createdBy,
-          status: UserStatus.ACTIVE,
+          ...(createUserDto.role !== UserRole.DEV
+            ? {
+                clientProfile: {
+                  create: {
+                    nif: dto.nif,
+                    licenseNumber: dto.licenseNumber,
+                    licenseExpiry,
+                    licenseIssueDate,
+                    licenseCountry: dto.licenseCountry,
+                    idCardNumber: dto.idCardNumber,
+                    idCardExpiry,
+                    customerType: dto.customerType,
+                    companyName: dto.companyName,
+                    companyTaxId: dto.companyTaxId,
+                    brokerName: dto.brokerName,
+                    brokerReference: dto.brokerReference,
+                    isBlacklisted: dto.isBlacklisted ?? false,
+                    blacklistReason: dto.blacklistReason,
+                    blacklistedAt: this.parseDateValue(dto.blacklistedAt),
+                    blacklistedBy: dto.blacklistedBy,
+                    clientRating: dto.clientRating,
+                    totalRentals: dto.totalRentals ?? 0,
+                  },
+                },
+              }
+            : {}),
+          ...([UserRole.STAFF, UserRole.ADMIN, UserRole.FLEET, UserRole.IT].includes(createUserDto.role)
+            ? {
+                staffProfile: {
+                  create: {
+                    employeeNumber: dto.employeeNumber || autoEmployeeNumber || String(Date.now()),
+                    hireDate,
+                    departmentId: dto.departmentId,
+                    stationId: dto.stationId as number,
+                  },
+                },
+              }
+            : {}),
         },
-        include: {
-          station: true,
-          department: true,
-          permissions: true,
-        },
+        include: this.userInclude,
       });
 
       // Criar permissões padrão baseadas no role (não deve bloquear criação do usuário)
@@ -79,7 +142,7 @@ export class UsersService {
       }
 
       // Remover senha do retorno
-      const { password: _, ...userWithoutPassword } = user;
+      const userWithoutPassword = this.mapUserForResponse(user);
 
       if (createdBy) {
         await this.logActivity(createdBy, 'user.created', 'User', user.id.toString(), {
@@ -141,19 +204,22 @@ export class UsersService {
     }
 
     if (filters?.stationId) {
-      where.stationId = filters.stationId;
+      where.OR = [
+        { stationId: filters.stationId },
+        { staffProfile: { is: { stationId: filters.stationId } } },
+      ];
     }
 
     if (filters?.customerType) {
-      where.customerType = filters.customerType;
+      where.AND = [...(where.AND || []), { clientProfile: { is: { customerType: filters.customerType } } }];
     }
 
     if (filters?.companyName) {
-      where.companyName = { contains: filters.companyName, mode: 'insensitive' };
+      where.AND = [...(where.AND || []), { clientProfile: { is: { companyName: { contains: filters.companyName, mode: 'insensitive' } } } }];
     }
 
     if (filters?.brokerName) {
-      where.brokerName = { contains: filters.brokerName, mode: 'insensitive' };
+      where.AND = [...(where.AND || []), { clientProfile: { is: { brokerName: { contains: filters.brokerName, mode: 'insensitive' } } } }];
     }
 
     if (filters?.search) {
@@ -163,56 +229,53 @@ export class UsersService {
         { email: { contains: filters.search, mode: 'insensitive' } },
         { phone: { contains: filters.search } },
         { cpf: { contains: filters.search } },
-        { nif: { contains: filters.search } },
+        { clientProfile: { is: { nif: { contains: filters.search } } } },
         { userCode: { contains: filters.search, mode: 'insensitive' } },
-        { companyName: { contains: filters.search, mode: 'insensitive' } },
-        { brokerName: { contains: filters.search, mode: 'insensitive' } },
+        { staffProfile: { is: { employeeNumber: { contains: filters.search } } } },
+        { clientProfile: { is: { companyName: { contains: filters.search, mode: 'insensitive' } } } },
+        { clientProfile: { is: { brokerName: { contains: filters.search, mode: 'insensitive' } } } },
       ];
     }
 
     const users = await this.prisma.user.findMany({
       where,
-      include: {
-        station: true,
-        department: true,
-        permissions: {
-          where: { isActive: true },
-        },
-      },
+      include: this.userInclude,
       orderBy: { createdAt: 'desc' },
     });
 
     // Remover senhas
-    return users.map(({ password, ...user }) => user);
+    return users.map(user => this.mapUserForResponse(user));
   }
 
   async findOne(id: number) {
     const user = await this.prisma.user.findUnique({
       where: { id },
-      include: {
-        station: true,
-        department: true,
-        permissions: {
-          where: { isActive: true },
-        },
-      },
+      include: this.userInclude,
     });
 
     if (!user) {
       throw new NotFoundException(`Usuário com ID ${id} não encontrado`);
     }
 
-    const { password, ...userWithoutPassword } = user;
-    return userWithoutPassword;
+    return this.mapUserForResponse(user);
   }
 
   async update(id: number, updateUserDto: UpdateUserDto) {
-    await this.findOne(id); // Verifica se existe
+    const existingUser = await this.prisma.user.findUnique({
+      where: { id },
+      include: this.userInclude,
+    });
 
-    const { password, firstName, lastName, userCode, ...rest } = updateUserDto;
+    if (!existingUser) {
+      throw new NotFoundException(`Usuário com ID ${id} não encontrado`);
+    }
+
+    const dto = updateUserDto as any;
+    const { password, firstName, lastName, userCode } = updateUserDto;
+    const targetRole = (dto.role ?? existingUser.role) as UserRole;
 
     let hashedPassword: string | undefined;
-    if (password) {
+    if (password && targetRole !== UserRole.CLIENT) {
       hashedPassword = await bcrypt.hash(password, 10);
     }
 
@@ -228,28 +291,104 @@ export class UsersService {
     const user = await this.prisma.user.update({
       where: { id },
       data: {
-        ...rest,
         ...(firstName && { firstName }),
         ...(lastName && { lastName }),
         ...(fullName && { fullName }),
         ...(hashedPassword && { password: hashedPassword }),
+        ...(targetRole === UserRole.CLIENT && { password: null }),
         ...(userCode && { userCode: userCode.toUpperCase() }),
+        ...(dto.email !== undefined && { email: dto.email }),
+        ...(dto.role !== undefined && { role: dto.role }),
+        ...(dto.status !== undefined && { status: dto.status }),
+        ...(dto.phone !== undefined && { phone: dto.phone }),
+        ...(dto.alternativePhone !== undefined && { alternativePhone: dto.alternativePhone }),
+        ...(dto.cpf !== undefined && { cpf: dto.cpf }),
+        ...(dto.dateOfBirth !== undefined && { dateOfBirth: this.parseDateValue(dto.dateOfBirth) }),
+        ...(dto.address !== undefined && { address: dto.address }),
+        ...(dto.city !== undefined && { city: dto.city }),
+        ...(dto.postalCode !== undefined && { postalCode: dto.postalCode }),
+        ...(dto.country !== undefined && { country: dto.country }),
+        ...(dto.stationId !== undefined && { stationId: dto.stationId }),
+        ...(dto.profileImage !== undefined && { profileImage: dto.profileImage }),
+        ...(dto.emailVerified !== undefined && { emailVerified: dto.emailVerified }),
+        ...(dto.phoneVerified !== undefined && { phoneVerified: dto.phoneVerified }),
+        ...(dto.acceptedTerms !== undefined && { acceptedTerms: dto.acceptedTerms }),
+        ...(dto.acceptedMarketing !== undefined && { acceptedMarketing: dto.acceptedMarketing }),
       },
-      include: {
-        station: true,
-        department: true,
-        permissions: {
-          where: { isActive: true },
+      include: this.userInclude,
+    });
+
+    const clientProfileData: any = {};
+    if (dto.nif !== undefined) clientProfileData.nif = dto.nif || null;
+    if (dto.licenseNumber !== undefined) clientProfileData.licenseNumber = dto.licenseNumber || null;
+    if (dto.licenseExpiry !== undefined) clientProfileData.licenseExpiry = this.parseDateValue(dto.licenseExpiry) || null;
+    if (dto.licenseIssueDate !== undefined) clientProfileData.licenseIssueDate = this.parseDateValue(dto.licenseIssueDate) || null;
+    if (dto.licenseCountry !== undefined) clientProfileData.licenseCountry = dto.licenseCountry || null;
+    if (dto.idCardNumber !== undefined) clientProfileData.idCardNumber = dto.idCardNumber || null;
+    if (dto.idCardExpiry !== undefined) clientProfileData.idCardExpiry = this.parseDateValue(dto.idCardExpiry) || null;
+    if (dto.customerType !== undefined) clientProfileData.customerType = dto.customerType || null;
+    if (dto.companyName !== undefined) clientProfileData.companyName = dto.companyName || null;
+    if (dto.companyTaxId !== undefined) clientProfileData.companyTaxId = dto.companyTaxId || null;
+    if (dto.brokerName !== undefined) clientProfileData.brokerName = dto.brokerName || null;
+    if (dto.brokerReference !== undefined) clientProfileData.brokerReference = dto.brokerReference || null;
+    if (dto.isBlacklisted !== undefined) clientProfileData.isBlacklisted = dto.isBlacklisted;
+    if (dto.blacklistReason !== undefined) clientProfileData.blacklistReason = dto.blacklistReason || null;
+    if (dto.blacklistedAt !== undefined) clientProfileData.blacklistedAt = this.parseDateValue(dto.blacklistedAt) || null;
+    if (dto.blacklistedBy !== undefined) clientProfileData.blacklistedBy = dto.blacklistedBy ?? null;
+    if (dto.clientRating !== undefined) clientProfileData.clientRating = dto.clientRating ?? null;
+    if (dto.totalRentals !== undefined) clientProfileData.totalRentals = dto.totalRentals ?? 0;
+
+    if (Object.keys(clientProfileData).length > 0 && targetRole !== UserRole.DEV) {
+      await this.prisma.clientProfile.upsert({
+        where: { userId: id },
+        create: {
+          ...clientProfileData,
+          totalRentals: clientProfileData.totalRentals ?? 0,
         },
-      },
+        update: clientProfileData,
+      });
+    }
+
+    if (targetRole === UserRole.DEV) {
+      await this.prisma.clientProfile.deleteMany({ where: { userId: id } });
+    }
+
+    if (targetRole === UserRole.CLIENT || targetRole === UserRole.DEV) {
+      await this.prisma.staffProfile.deleteMany({ where: { userId: id } });
+    } else {
+      const resolvedStationId = dto.stationId ?? user.stationId ?? existingUser.staffProfile?.stationId;
+      if (!resolvedStationId) {
+        throw new BadRequestException(`${targetRole} precisa estar associado a uma estação`);
+      }
+
+      await this.prisma.staffProfile.upsert({
+        where: { userId: id },
+        create: {
+          userId: id,
+          employeeNumber: dto.employeeNumber || existingUser.staffProfile?.employeeNumber || await this.getNextEmployeeNumber(),
+          hireDate: dto.hireDate !== undefined ? this.parseDateValue(dto.hireDate) : existingUser.staffProfile?.hireDate,
+          departmentId: dto.departmentId !== undefined ? dto.departmentId : existingUser.staffProfile?.departmentId,
+          stationId: Number(resolvedStationId),
+        },
+        update: {
+          ...(dto.employeeNumber !== undefined && { employeeNumber: dto.employeeNumber }),
+          ...(dto.hireDate !== undefined && { hireDate: this.parseDateValue(dto.hireDate) || null }),
+          ...(dto.departmentId !== undefined && { departmentId: dto.departmentId || null }),
+          stationId: Number(resolvedStationId),
+        },
+      });
+    }
+
+    const refreshedUser = await this.prisma.user.findUnique({
+      where: { id },
+      include: this.userInclude,
     });
 
     await this.logActivity(id, 'user.updated', 'User', id.toString(), {
       fields: Object.keys(updateUserDto || {}),
     });
 
-    const { password: _, ...userWithoutPassword } = user;
-    return userWithoutPassword;
+    return this.mapUserForResponse(refreshedUser || user);
   }
 
   async remove(id: number, removedBy: number) {
@@ -260,8 +399,8 @@ export class UsersService {
       throw new NotFoundException('Usuário executor não encontrado');
     }
 
-    if (![UserRole.IT, UserRole.ADMIN].includes(actor.role as UserRole)) {
-      throw new ForbiddenException('Apenas IT/ADMIN podem remover usuários');
+    if (![UserRole.DEV, UserRole.IT, UserRole.ADMIN].includes(actor.role as UserRole)) {
+      throw new ForbiddenException('Apenas DEV/IT/ADMIN podem remover usuários');
     }
 
     try {
@@ -384,8 +523,8 @@ export class UsersService {
     const mover = await this.findOne(movedBy);
     
     // Apenas ADMIN e IT podem mover staff
-    if (![UserRole.ADMIN, UserRole.IT].includes(mover.role as UserRole)) {
-      throw new ForbiddenException('Apenas ADMIN e IT podem mover staff entre estações');
+    if (![UserRole.DEV, UserRole.ADMIN, UserRole.IT].includes(mover.role as UserRole)) {
+      throw new ForbiddenException('Apenas DEV, ADMIN e IT podem mover staff entre estações');
     }
 
     const user = await this.findOne(dto.userId);
@@ -407,12 +546,25 @@ export class UsersService {
 
     const updatedUser = await this.prisma.user.update({
       where: { id: dto.userId },
-      data: { stationId: dto.newStationId },
-      include: { station: true },
+      data: {
+        stationId: dto.newStationId,
+        staffProfile: {
+          upsert: {
+            create: {
+              stationId: dto.newStationId,
+              employeeNumber: await this.getNextEmployeeNumber(),
+            },
+            update: {
+              stationId: dto.newStationId,
+            },
+          },
+        },
+      },
+      include: this.userInclude,
     });
 
     await this.logActivity(movedBy, 'staff.moved', 'User', dto.userId.toString(), {
-      from: user.station?.name,
+      from: user.staffProfile?.station?.name || user.station?.name,
       to: station.name,
       reason: dto.reason,
     });
@@ -428,13 +580,25 @@ export class UsersService {
     });
   }
 
+  async suspendStaff(userId: number, changedBy: number) {
+    return this.updateStaffStatus(userId, changedBy, UserStatus.SUSPENDED);
+  }
+
+  async deactivateStaff(userId: number, changedBy: number) {
+    return this.updateStaffStatus(userId, changedBy, UserStatus.INACTIVE);
+  }
+
+  async activateStaff(userId: number, changedBy: number) {
+    return this.updateStaffStatus(userId, changedBy, UserStatus.ACTIVE);
+  }
+
   // ===== STATION VALIDATION =====
 
   async validateStationAccess(userId: number, stationId: number): Promise<boolean> {
     const user = await this.findOne(userId);
 
     // IT tem acesso a todas as estações
-    if (user.role === UserRole.IT) {
+    if (user.role === UserRole.IT || user.role === UserRole.DEV) {
       return true;
     }
 
@@ -445,12 +609,12 @@ export class UsersService {
 
     // STAFF e FLEET só podem acessar sua própria estação
     if ([UserRole.STAFF, UserRole.FLEET].includes(user.role as UserRole)) {
-      return user.stationId === stationId;
+      return this.getUserStationId(user) === stationId;
     }
 
     // ADMIN pode acessar sua estação
     if (user.role === UserRole.ADMIN) {
-      return user.stationId === stationId;
+      return this.getUserStationId(user) === stationId;
     }
 
     return false;
@@ -461,17 +625,17 @@ export class UsersService {
 
     // Apenas IT pode criar/deletar estações
     if (!stationId) {
-      return user.role === UserRole.IT;
+      return user.role === UserRole.DEV || user.role === UserRole.IT;
     }
 
     // IT pode gerenciar qualquer estação
-    if (user.role === UserRole.IT) {
+    if (user.role === UserRole.DEV || user.role === UserRole.IT) {
       return true;
     }
 
     // ADMIN pode gerenciar apenas sua própria estação
     if (user.role === UserRole.ADMIN) {
-      return user.stationId === stationId;
+      return this.getUserStationId(user) === stationId;
     }
 
     return false;
@@ -545,12 +709,7 @@ export class UsersService {
   }
 
   private async getNextEmployeeNumber(): Promise<string> {
-    const usersWithEmployeeNumber = await this.prisma.user.findMany({
-      where: {
-        employeeNumber: {
-          not: null,
-        },
-      },
+    const usersWithEmployeeNumber = await this.prisma.staffProfile.findMany({
       select: {
         employeeNumber: true,
       },
@@ -566,6 +725,93 @@ export class UsersService {
     }
 
     return String(maxValue + 1);
+  }
+
+  private getUserStationId(user: any): number | undefined {
+    const stationId = user?.staffProfile?.stationId ?? user?.stationId;
+    if (stationId === null || stationId === undefined) return undefined;
+    return Number(stationId);
+  }
+
+  private async updateStaffStatus(userId: number, changedBy: number, status: UserStatus) {
+    const actor = await this.prisma.user.findUnique({ where: { id: changedBy } });
+    if (!actor) {
+      throw new NotFoundException('Usuário executor não encontrado');
+    }
+
+    if (![UserRole.DEV, UserRole.IT, UserRole.ADMIN].includes(actor.role as UserRole)) {
+      throw new ForbiddenException('Apenas DEV/IT/ADMIN podem alterar estado de staff');
+    }
+
+    if (userId === changedBy) {
+      throw new BadRequestException('Não pode alterar o seu próprio estado');
+    }
+
+    const target = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: this.userInclude,
+    });
+
+    if (!target) {
+      throw new NotFoundException(`Usuário com ID ${userId} não encontrado`);
+    }
+
+    if (target.role === UserRole.CLIENT) {
+      throw new BadRequestException('A ação é apenas para contas staff');
+    }
+
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: { status },
+      include: this.userInclude,
+    });
+
+    const action = status === UserStatus.SUSPENDED
+      ? 'staff.suspended'
+      : status === UserStatus.INACTIVE
+        ? 'staff.deactivated'
+        : 'staff.activated';
+
+    await this.logActivity(changedBy, action, 'User', userId.toString(), {
+      fromStatus: target.status,
+      toStatus: status,
+      targetRole: target.role,
+      targetUserCode: target.userCode,
+    });
+
+    return this.mapUserForResponse(updated);
+  }
+
+  private mapUserForResponse(user: any) {
+    const { password: _, ...safeUser } = user;
+    return {
+      ...safeUser,
+      nif: safeUser.clientProfile?.nif ?? null,
+      licenseNumber: safeUser.clientProfile?.licenseNumber ?? null,
+      licenseExpiry: safeUser.clientProfile?.licenseExpiry ?? null,
+      licenseIssueDate: safeUser.clientProfile?.licenseIssueDate ?? null,
+      licenseCountry: safeUser.clientProfile?.licenseCountry ?? null,
+      idCardNumber: safeUser.clientProfile?.idCardNumber ?? null,
+      idCardExpiry: safeUser.clientProfile?.idCardExpiry ?? null,
+      customerType: safeUser.clientProfile?.customerType ?? null,
+      companyName: safeUser.clientProfile?.companyName ?? null,
+      companyTaxId: safeUser.clientProfile?.companyTaxId ?? null,
+      brokerName: safeUser.clientProfile?.brokerName ?? null,
+      brokerReference: safeUser.clientProfile?.brokerReference ?? null,
+      isBlacklisted: safeUser.clientProfile?.isBlacklisted ?? false,
+      blacklistReason: safeUser.clientProfile?.blacklistReason ?? null,
+      blacklistedAt: safeUser.clientProfile?.blacklistedAt ?? null,
+      blacklistedBy: safeUser.clientProfile?.blacklistedBy ?? null,
+      clientRating: safeUser.clientProfile?.clientRating ?? null,
+      totalRentals: safeUser.clientProfile?.totalRentals ?? 0,
+      employeeNumber: safeUser.staffProfile?.employeeNumber ?? null,
+      hireDate: safeUser.staffProfile?.hireDate ?? null,
+      departmentId: safeUser.staffProfile?.departmentId ?? null,
+      department: safeUser.staffProfile?.department ?? null,
+      stationId: safeUser.staffProfile?.stationId ?? safeUser.stationId ?? null,
+      station: safeUser.staffProfile?.station ?? safeUser.station ?? null,
+      tenantCode: safeUser.tenant?.code ?? null,
+    };
   }
 
   private async logActivity(

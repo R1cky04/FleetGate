@@ -1,8 +1,8 @@
 {
   "$schema": "./system.config.schema.json",
   "version": "1.0.0",
-  "lastUpdated": "2026-02-16T20:16:56.701Z",
-  "updatedBy": "user:37",
+  "lastUpdated": "2026-02-18T05:48:57.403Z",
+  "updatedBy": "user:108",
   "departments": [
     {
       "name": "IT",
@@ -654,5 +654,23 @@
     "currency": "EUR",
     "locale": "pt-PT",
     "timezone": "Europe/Lisbon"
-  }
+  },
+  "tenants": [
+    {
+      "id": 1,
+      "code": "1",
+      "name": "Movida",
+      "isActive": true,
+      "dbMode": "DEDICATED",
+      "dbName": null,
+      "dbHost": null,
+      "dbPort": null,
+      "dbUser": null,
+      "dbPassword": null,
+      "dbUrl": null,
+      "notes": null,
+      "createdAt": "2026-02-18T05:48:57.403Z",
+      "updatedAt": "2026-02-18T05:48:57.403Z"
+    }
+  ]
 }

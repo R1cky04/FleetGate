@@ -29,8 +29,8 @@ export class ContractsService {
       throw new NotFoundException('Usuário não encontrado');
     }
 
-    // Apenas STAFF, ADMIN, IT podem criar contratos
-    const allowedRoles: UserRole[] = [UserRole.STAFF, UserRole.ADMIN, UserRole.IT];
+    // Apenas STAFF, ADMIN, IT, DEV podem criar contratos
+    const allowedRoles: UserRole[] = [UserRole.STAFF, UserRole.ADMIN, UserRole.IT, UserRole.DEV];
     if (!allowedRoles.includes(user.role as UserRole)) {
       throw new ForbiddenException('Você não tem permissão para criar contratos');
     }
@@ -208,7 +208,11 @@ export class ContractsService {
             fullName: true,
             email: true,
             phone: true,
-            licenseNumber: true,
+            clientProfile: {
+              select: {
+                licenseNumber: true,
+              },
+            },
           },
         },
         reservation: true,
@@ -424,8 +428,8 @@ export class ContractsService {
       throw new NotFoundException('Usuário não encontrado');
     }
 
-    // Apenas STAFF, ADMIN, IT podem atualizar contratos
-    const allowedRoles: UserRole[] = [UserRole.STAFF, UserRole.ADMIN, UserRole.IT];
+    // Apenas STAFF, ADMIN, IT, DEV podem atualizar contratos
+    const allowedRoles: UserRole[] = [UserRole.STAFF, UserRole.ADMIN, UserRole.IT, UserRole.DEV];
     if (!allowedRoles.includes(user.role as UserRole)) {
       throw new ForbiddenException('Você não tem permissão para atualizar contratos');
     }
@@ -501,8 +505,8 @@ export class ContractsService {
       throw new NotFoundException('Usuário não encontrado');
     }
 
-    // Apenas STAFF, ADMIN, IT podem completar contratos
-    const allowedRoles: UserRole[] = [UserRole.STAFF, UserRole.ADMIN, UserRole.IT];
+    // Apenas STAFF, ADMIN, IT, DEV podem completar contratos
+    const allowedRoles: UserRole[] = [UserRole.STAFF, UserRole.ADMIN, UserRole.IT, UserRole.DEV];
     if (!allowedRoles.includes(user.role as UserRole)) {
       throw new ForbiddenException('Você não tem permissão para completar contratos');
     }
@@ -627,10 +631,10 @@ export class ContractsService {
       throw new NotFoundException('Usuário não encontrado');
     }
 
-    // Apenas ADMIN e IT podem cancelar contratos
-    const allowedRoles: UserRole[] = [UserRole.ADMIN, UserRole.IT];
+    // Apenas ADMIN, IT e DEV podem cancelar contratos
+    const allowedRoles: UserRole[] = [UserRole.ADMIN, UserRole.IT, UserRole.DEV];
     if (!allowedRoles.includes(user.role as UserRole)) {
-      throw new ForbiddenException('Apenas ADMIN e IT podem cancelar contratos');
+      throw new ForbiddenException('Apenas ADMIN, IT e DEV podem cancelar contratos');
     }
 
     const contract = await this.prisma.contract.findUnique({
@@ -688,7 +692,7 @@ export class ContractsService {
       throw new NotFoundException('Usuário não encontrado');
     }
 
-    const allowedRoles: UserRole[] = [UserRole.STAFF, UserRole.ADMIN, UserRole.IT];
+    const allowedRoles: UserRole[] = [UserRole.STAFF, UserRole.ADMIN, UserRole.IT, UserRole.DEV];
     if (!allowedRoles.includes(user.role as UserRole)) {
       throw new ForbiddenException('Você não tem permissão para pre-fechar contratos');
     }
@@ -740,9 +744,9 @@ export class ContractsService {
       throw new NotFoundException('Usuário não encontrado');
     }
 
-    const allowedRoles: UserRole[] = [UserRole.ADMIN, UserRole.IT];
+    const allowedRoles: UserRole[] = [UserRole.ADMIN, UserRole.IT, UserRole.DEV];
     if (!allowedRoles.includes(user.role as UserRole)) {
-      throw new ForbiddenException('Apenas ADMIN e IT podem estender contratos');
+      throw new ForbiddenException('Apenas ADMIN, IT e DEV podem estender contratos');
     }
 
     const contract = await this.prisma.contract.findUnique({
@@ -802,8 +806,8 @@ export class ContractsService {
       throw new NotFoundException('Usuário não encontrado');
     }
 
-    if (user.role !== UserRole.IT) {
-      throw new ForbiddenException('Apenas IT pode reabrir contratos');
+    if (user.role !== UserRole.DEV && user.role !== UserRole.IT) {
+      throw new ForbiddenException('Apenas DEV/IT podem reabrir contratos');
     }
 
     const contract = await this.prisma.contract.findUnique({
@@ -883,9 +887,9 @@ export class ContractsService {
       throw new NotFoundException('Usuário não encontrado');
     }
 
-    // Apenas IT pode deletar contratos
-    if (user.role !== UserRole.IT) {
-      throw new ForbiddenException('Apenas IT pode deletar contratos');
+    // Apenas DEV/IT podem deletar contratos
+    if (user.role !== UserRole.DEV && user.role !== UserRole.IT) {
+      throw new ForbiddenException('Apenas DEV/IT podem deletar contratos');
     }
 
     const contract = await this.prisma.contract.findUnique({

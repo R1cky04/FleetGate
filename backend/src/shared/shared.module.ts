@@ -5,6 +5,7 @@ import { RecordLockService } from './services/record-lock.service';
 import { VehicleValidationService } from './services/vehicle-validation.service';
 import { StationIsolationGuard, RecordStationAccessGuard } from './guards/station-isolation.guard';
 import { RecordLockInterceptor } from './interceptors/record-lock.interceptor';
+import { TenantContextInterceptor } from './interceptors/tenant-context.interceptor';
 import { LocksController } from './controllers/locks.controller';
 
 @Module({
@@ -17,6 +18,10 @@ import { LocksController } from './controllers/locks.controller';
     {
       provide: APP_INTERCEPTOR,
       useClass: RecordLockInterceptor,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: TenantContextInterceptor,
     },
   ],
   exports: [RecordLockService, VehicleValidationService, StationIsolationGuard, RecordStationAccessGuard],

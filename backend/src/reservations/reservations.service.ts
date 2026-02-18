@@ -39,8 +39,8 @@ export class ReservationsService {
         throw new NotFoundException('Usuário não encontrado');
       }
 
-      // Apenas STAFF, ADMIN, IT podem criar reservas
-      const allowedRoles: UserRole[] = [UserRole.STAFF, UserRole.ADMIN, UserRole.IT];
+      // Apenas STAFF, ADMIN, IT, DEV podem criar reservas
+      const allowedRoles: UserRole[] = [UserRole.STAFF, UserRole.ADMIN, UserRole.IT, UserRole.DEV];
       if (!allowedRoles.includes(user.role as UserRole)) {
         throw new ForbiddenException('Você não tem permissão para criar reservas');
       }
@@ -439,8 +439,8 @@ export class ReservationsService {
       throw new NotFoundException('Usuário não encontrado');
     }
 
-    // Apenas STAFF, ADMIN, IT podem atualizar reservas
-    const allowedRoles: UserRole[] = [UserRole.STAFF, UserRole.ADMIN, UserRole.IT];
+    // Apenas STAFF, ADMIN, IT, DEV podem atualizar reservas
+    const allowedRoles: UserRole[] = [UserRole.STAFF, UserRole.ADMIN, UserRole.IT, UserRole.DEV];
     if (!allowedRoles.includes(user.role as UserRole)) {
       throw new ForbiddenException('Você não tem permissão para atualizar reservas');
     }
@@ -549,7 +549,7 @@ export class ReservationsService {
       throw new NotFoundException('Usuário não encontrado');
     }
 
-    const allowedRoles: UserRole[] = [UserRole.STAFF, UserRole.ADMIN, UserRole.IT];
+    const allowedRoles: UserRole[] = [UserRole.STAFF, UserRole.ADMIN, UserRole.IT, UserRole.DEV];
     if (!allowedRoles.includes(user.role as UserRole)) {
       throw new ForbiddenException('Você não tem permissão para confirmar reservas');
     }
@@ -644,7 +644,7 @@ export class ReservationsService {
       });
 
       if (user) {
-        const allowedRoles: UserRole[] = [UserRole.STAFF, UserRole.ADMIN, UserRole.IT];
+        const allowedRoles: UserRole[] = [UserRole.STAFF, UserRole.ADMIN, UserRole.IT, UserRole.DEV];
         if (!allowedRoles.includes(user.role as UserRole)) {
           throw new ForbiddenException('Você não tem permissão para cancelar reservas');
         }
@@ -700,8 +700,8 @@ export class ReservationsService {
       throw new NotFoundException('Usuário não encontrado');
     }
 
-    if (user.role !== UserRole.IT) {
-      throw new ForbiddenException('Apenas IT pode reabrir reservas');
+    if (user.role !== UserRole.DEV && user.role !== UserRole.IT) {
+      throw new ForbiddenException('Apenas DEV/IT podem reabrir reservas');
     }
 
     const reservation = await this.prisma.reservation.findUnique({
@@ -1052,9 +1052,9 @@ export class ReservationsService {
       throw new NotFoundException('Usuário não encontrado');
     }
 
-    // Apenas IT pode deletar reservas
-    if (user.role !== UserRole.IT) {
-      throw new ForbiddenException('Apenas IT pode deletar reservas');
+    // Apenas DEV/IT podem deletar reservas
+    if (user.role !== UserRole.DEV && user.role !== UserRole.IT) {
+      throw new ForbiddenException('Apenas DEV/IT podem deletar reservas');
     }
 
     const reservation = await this.prisma.reservation.findUnique({
@@ -1087,7 +1087,7 @@ export class ReservationsService {
         OR: [
           ...(clientData.email ? [{ email: clientData.email }] : []),
           ...(clientData.cpf ? [{ cpf: clientData.cpf }] : []),
-          ...(clientData.nif ? [{ nif: clientData.nif }] : []),
+          ...(clientData.nif ? [{ clientProfile: { is: { nif: clientData.nif } } }] : []),
         ],
       },
     });
@@ -1111,20 +1111,24 @@ export class ReservationsService {
         phone: clientData.phone,
         alternativePhone: clientData.alternativePhone,
         cpf: clientData.cpf,
-        nif: clientData.nif,
         dateOfBirth: clientData.dateOfBirth ? new Date(clientData.dateOfBirth) : null,
         address: clientData.address,
         city: clientData.city,
         postalCode: clientData.postalCode,
         country: clientData.country || 'Portugal',
-        licenseNumber: clientData.licenseNumber,
-        licenseExpiry: clientData.licenseExpiry ? new Date(clientData.licenseExpiry) : null,
-        licenseIssueDate: clientData.licenseIssueDate
-          ? new Date(clientData.licenseIssueDate)
-          : null,
-        licenseCountry: clientData.licenseCountry,
-        idCardNumber: clientData.idCardNumber,
-        idCardExpiry: clientData.idCardExpiry ? new Date(clientData.idCardExpiry) : null,
+        clientProfile: {
+          create: {
+            nif: clientData.nif,
+            licenseNumber: clientData.licenseNumber,
+            licenseExpiry: clientData.licenseExpiry ? new Date(clientData.licenseExpiry) : null,
+            licenseIssueDate: clientData.licenseIssueDate
+              ? new Date(clientData.licenseIssueDate)
+              : null,
+            licenseCountry: clientData.licenseCountry,
+            idCardNumber: clientData.idCardNumber,
+            idCardExpiry: clientData.idCardExpiry ? new Date(clientData.idCardExpiry) : null,
+          },
+        },
       },
     });
 

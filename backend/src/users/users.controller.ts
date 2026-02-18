@@ -95,4 +95,19 @@ export class UsersController {
   getStaffByStation(@Param('stationId', ParseIntPipe) stationId: number) {
     return this.usersService.getStaffByStation(stationId);
   }
+
+  @Patch('staff/:id/suspend')
+  suspendStaff(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: JwtUser) {
+    return this.usersService.suspendStaff(id, user.id);
+  }
+
+  @Patch('staff/:id/deactivate')
+  deactivateStaff(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: JwtUser) {
+    return this.usersService.deactivateStaff(id, user.id);
+  }
+
+  @Patch('staff/:id/activate')
+  activateStaff(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: JwtUser) {
+    return this.usersService.activateStaff(id, user.id);
+  }
 }

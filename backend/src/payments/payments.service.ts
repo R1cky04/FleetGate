@@ -90,7 +90,7 @@ export class PaymentsService {
       throw new NotFoundException('Usuário não encontrado');
     }
 
-    const allowedRoles: UserRole[] = [UserRole.STAFF, UserRole.ADMIN, UserRole.IT];
+    const allowedRoles: UserRole[] = [UserRole.STAFF, UserRole.ADMIN, UserRole.IT, UserRole.DEV];
     if (!allowedRoles.includes(user.role as UserRole)) {
       throw new ForbiddenException('Você não tem permissão para processar pagamentos');
     }
@@ -162,9 +162,9 @@ export class PaymentsService {
       throw new NotFoundException('Usuário não encontrado');
     }
 
-    const allowedRoles: UserRole[] = [UserRole.ADMIN, UserRole.IT];
+    const allowedRoles: UserRole[] = [UserRole.ADMIN, UserRole.IT, UserRole.DEV];
     if (!allowedRoles.includes(user.role as UserRole)) {
-      throw new ForbiddenException('Apenas ADMIN e IT podem reembolsar pagamentos');
+      throw new ForbiddenException('Apenas ADMIN, IT e DEV podem reembolsar pagamentos');
     }
 
     const payment = await this.prisma.payment.findUnique({

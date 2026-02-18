@@ -38,7 +38,7 @@
           <h2>Access Denied</h2>
         </div>
         <div class="modal-body">
-          <p>Only System Administrators can access System Maintenance.</p>
+          <p>Only DEV can access System Maintenance.</p>
         </div>
         <div class="modal-footer">
           <button class="modal-btn" @click="closeModal">OK</button>
@@ -100,8 +100,8 @@ const openModule = (module: string) => {
   console.log('Opening module:', module)
   
   if (module === 'maintenance') {
-    // Check if user is IT role
-    if (userRole.value !== 'IT') {
+    // Check if user is DEV role
+    if (userRole.value !== 'DEV') {
       showAccessModal.value = true
       return
     }

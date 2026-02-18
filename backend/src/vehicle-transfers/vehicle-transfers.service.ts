@@ -20,7 +20,7 @@ export class VehicleTransfersService {
       throw new NotFoundException('Usuário não encontrado');
     }
 
-    const allowedRoles: UserRole[] = [UserRole.FLEET, UserRole.STAFF, UserRole.ADMIN, UserRole.IT];
+    const allowedRoles: UserRole[] = [UserRole.FLEET, UserRole.STAFF, UserRole.ADMIN, UserRole.IT, UserRole.DEV];
     if (!allowedRoles.includes(user.role as UserRole)) {
       throw new ForbiddenException('Você não tem permissão para criar transfers');
     }

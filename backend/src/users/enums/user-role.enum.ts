@@ -1,4 +1,5 @@
 export enum UserRole {
+  DEV = 'DEV',
   CLIENT = 'CLIENT',
   FLEET = 'FLEET',
   STAFF = 'STAFF',
@@ -15,6 +16,7 @@ export enum UserStatus {
 
 // Hierarquia de permissões
 export const ROLE_HIERARCHY = {
+  [UserRole.DEV]: [UserRole.IT, UserRole.ADMIN, UserRole.STAFF, UserRole.FLEET, UserRole.CLIENT],
   [UserRole.CLIENT]: [],
   [UserRole.FLEET]: [UserRole.CLIENT],
   [UserRole.STAFF]: [UserRole.FLEET, UserRole.CLIENT],
@@ -87,6 +89,10 @@ export enum Permission {
 
 // Permissões padrão por role
 export const DEFAULT_PERMISSIONS: Record<UserRole, Permission[]> = {
+  [UserRole.DEV]: [
+    ...Object.values(Permission),
+  ],
+
   [UserRole.CLIENT]: [],
   
   [UserRole.FLEET]: [

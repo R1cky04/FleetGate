@@ -27,13 +27,16 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  validate(payload: { sub: number; userCode?: string; email?: string; role: string; stationId?: number | null }): JwtUser {
+  validate(payload: { sub: number; userCode?: string; email?: string; role: string; stationId?: number | null; tenantId?: number | null; companyCode?: string; tenantDbMode?: 'SHARED' | 'DEDICATED' }): JwtUser {
     return {
       id: payload.sub,
       userCode: payload.userCode ?? null,
       email: payload.email ?? null,
       role: payload.role as JwtUser['role'],
       stationId: payload.stationId ?? null,
+      tenantId: payload.tenantId ?? null,
+      companyCode: payload.companyCode ?? null,
+      tenantDbMode: payload.tenantDbMode ?? null,
     };
   }
 }

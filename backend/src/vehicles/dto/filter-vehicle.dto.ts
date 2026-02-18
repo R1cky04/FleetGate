@@ -1,4 +1,4 @@
-import { IsEnum, IsOptional, IsString, IsInt, Min } from 'class-validator';
+import { IsEnum, IsOptional, IsString, IsInt, Min, IsBoolean } from 'class-validator';
 import { VehicleStatus } from '../../../generated/prisma';
 import { Type } from 'class-transformer';
 
@@ -28,6 +28,21 @@ export class FilterVehicleDto {
   @Type(() => Number)
   @IsOptional()
   year?: number;
+
+  @IsBoolean()
+  @Type(() => Boolean)
+  @IsOptional()
+  isStolen?: boolean;
+
+  @IsBoolean()
+  @Type(() => Boolean)
+  @IsOptional()
+  isSold?: boolean;
+
+  @IsBoolean()
+  @Type(() => Boolean)
+  @IsOptional()
+  isBlocked?: boolean;
 
   @IsString()
   @IsOptional()

@@ -10,10 +10,18 @@ import addFormats from 'ajv-formats';
 export class SystemConfigService {
   private readonly configPath = path.join(process.cwd(), 'config', 'system.config.json');
 
+  private readonly DEFAULT_CONFIG = {
+    systemName: 'FleetGate',
+    apiUrl: 'http://localhost:3000',
+    dbHost: 'localhost',
+    debugMode: false,
+    tenants: [],
+  } as const;
+
   constructor(private prisma: PrismaService) {}
 
   async getConfig(userId: number) {
-    await this.ensureItUser(userId);
+    await this.ensureDevUser(userId);
     const [fileConfig, dbConfig] = await Promise.all([
       this.readFileConfig(),
       this.readDbConfig(),
@@ -46,7 +54,7 @@ export class SystemConfigService {
   }
 
   async updateConfig(userId: number, config: Record<string, unknown>) {
-    await this.ensureItUser(userId);
+    await this.ensureDevUser(userId);
     await this.validateConfigOrThrow(config);
 
     const updatedConfig = {
@@ -60,11 +68,119 @@ export class SystemConfigService {
     return updatedConfig;
   }
 
+  async getTenants(userId: number) {
+    await this.ensureDevUser(userId);
+    const config = await this.getOrCreateConfig();
+    return this.normalizeTenants(config);
+  }
+
+  async createTenant(userId: number, payload: Record<string, unknown>) {
+    await this.ensureDevUser(userId);
+    const config = await this.getOrCreateConfig();
+    const tenants = this.normalizeTenants(config);
+
+    const code = String(payload.code || '').trim().toUpperCase();
+    const name = String(payload.name || '').trim();
+
+    if (!code || !name) {
+      throw new BadRequestException('code e name são obrigatórios');
+    }
+
+    if (tenants.some((tenant) => tenant.code === code)) {
+      throw new BadRequestException('Já existe um tenant com esse código');
+    }
+
+    const now = new Date().toISOString();
+    const tenant = {
+      id: this.getNextTenantId(tenants),
+      code,
+      name,
+      isActive: payload.isActive === undefined ? true : Boolean(payload.isActive),
+      dbMode: this.normalizeDbMode(payload.dbMode),
+      dbName: String(payload.dbName || '').trim() || null,
+      dbHost: String(payload.dbHost || '').trim() || null,
+      dbPort: String(payload.dbPort || '').trim() || null,
+      dbUser: String(payload.dbUser || '').trim() || null,
+      dbPassword: String(payload.dbPassword || '').trim() || null,
+      dbUrl: String(payload.dbUrl || '').trim() || null,
+      notes: String(payload.notes || '').trim() || null,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    const updatedTenants = [...tenants, tenant];
+    await this.persistTenants(config, updatedTenants, userId);
+    return tenant;
+  }
+
+  async updateTenant(userId: number, tenantId: number, payload: Record<string, unknown>) {
+    await this.ensureDevUser(userId);
+    const config = await this.getOrCreateConfig();
+    const tenants = this.normalizeTenants(config);
+    const index = tenants.findIndex((tenant) => tenant.id === tenantId);
+
+    if (index === -1) {
+      throw new NotFoundException('Tenant não encontrado');
+    }
+
+    const current = tenants[index];
+    const nextCode = payload.code === undefined
+      ? current.code
+      : String(payload.code || '').trim().toUpperCase();
+    const nextName = payload.name === undefined
+      ? current.name
+      : String(payload.name || '').trim();
+
+    if (!nextCode || !nextName) {
+      throw new BadRequestException('code e name são obrigatórios');
+    }
+
+    if (tenants.some((tenant) => tenant.id !== tenantId && tenant.code === nextCode)) {
+      throw new BadRequestException('Já existe um tenant com esse código');
+    }
+
+    const updatedTenant = {
+      ...current,
+      code: nextCode,
+      name: nextName,
+      isActive: payload.isActive === undefined ? current.isActive : Boolean(payload.isActive),
+      dbMode: payload.dbMode === undefined ? current.dbMode : this.normalizeDbMode(payload.dbMode),
+      dbName: payload.dbName === undefined ? current.dbName : (String(payload.dbName || '').trim() || null),
+      dbHost: payload.dbHost === undefined ? current.dbHost : (String(payload.dbHost || '').trim() || null),
+      dbPort: payload.dbPort === undefined ? current.dbPort : (String(payload.dbPort || '').trim() || null),
+      dbUser: payload.dbUser === undefined ? current.dbUser : (String(payload.dbUser || '').trim() || null),
+      dbPassword: payload.dbPassword === undefined ? current.dbPassword : (String(payload.dbPassword || '').trim() || null),
+      dbUrl: payload.dbUrl === undefined ? current.dbUrl : (String(payload.dbUrl || '').trim() || null),
+      notes: payload.notes === undefined ? current.notes : (String(payload.notes || '').trim() || null),
+      updatedAt: new Date().toISOString(),
+    };
+
+    const updatedTenants = [...tenants];
+    updatedTenants[index] = updatedTenant;
+    await this.persistTenants(config, updatedTenants, userId);
+    return updatedTenant;
+  }
+
+  async removeTenant(userId: number, tenantId: number) {
+    await this.ensureDevUser(userId);
+    const config = await this.getOrCreateConfig();
+    const tenants = this.normalizeTenants(config);
+    const target = tenants.find((tenant) => tenant.id === tenantId);
+
+    if (!target) {
+      throw new NotFoundException('Tenant não encontrado');
+    }
+
+    const updatedTenants = tenants.filter((tenant) => tenant.id !== tenantId);
+    await this.persistTenants(config, updatedTenants, userId);
+    return { deleted: true, id: tenantId };
+  }
+
   async getActivityLogs(
     userId: number,
     filters?: { search?: string; action?: string; limit?: number },
   ) {
-    await this.ensureItUser(userId);
+    await this.ensureDevUser(userId);
 
     const normalizedLimit = Math.min(Math.max(filters?.limit ?? 300, 1), 1000);
     const where: any = {};
@@ -87,6 +203,11 @@ export class SystemConfigService {
       orderBy: { createdAt: 'desc' },
       take: normalizedLimit,
       include: {
+        tenant: {
+          select: {
+            code: true,
+          },
+        },
         user: {
           select: {
             id: true,
@@ -102,6 +223,8 @@ export class SystemConfigService {
       subject: `${entry.entityType}:${entry.entityId}`,
       userId: entry.userId,
       userCode: entry.user?.userCode ?? null,
+      tenantId: entry.tenantId,
+      tenantCode: entry.tenant?.code ?? null,
       timestamp: entry.createdAt,
       details: entry.details,
       entityType: entry.entityType,
@@ -110,13 +233,13 @@ export class SystemConfigService {
   }
 
   async clearActivityLogs(userId: number) {
-    await this.ensureItUser(userId);
+    await this.ensureDevUser(userId);
     const result = await this.prisma.activityLog.deleteMany();
     return { deleted: result.count };
   }
 
   async getSystemInfo(userId: number) {
-    await this.ensureItUser(userId);
+    await this.ensureDevUser(userId);
 
     const [activeUsers, totalUsers, totalStations, totalRequests] = await Promise.all([
       this.prisma.user.count({ where: { status: 'ACTIVE' } }),
@@ -137,7 +260,7 @@ export class SystemConfigService {
   }
 
   async restartServices(userId: number) {
-    await this.ensureItUser(userId);
+    await this.ensureDevUser(userId);
     return {
       status: 'accepted',
       message: 'Restart request registered successfully',
@@ -152,6 +275,91 @@ export class SystemConfigService {
       return JSON.parse(content);
     } catch {
       return null;
+    }
+  }
+
+  private normalizeDbMode(value: unknown): 'SHARED' | 'DEDICATED' {
+    const normalized = String(value || '').trim().toUpperCase();
+    if (normalized === 'DEDICATED') return 'DEDICATED';
+    return 'SHARED';
+  }
+
+  private normalizeTenants(config: Record<string, any>) {
+    const raw = Array.isArray(config?.tenants) ? config.tenants : [];
+    return raw
+      .map((item: any, index: number) => ({
+        id: Number(item?.id) || index + 1,
+        code: String(item?.code || '').trim().toUpperCase(),
+        name: String(item?.name || '').trim(),
+        isActive: Boolean(item?.isActive),
+        dbMode: this.normalizeDbMode(item?.dbMode),
+        dbName: item?.dbName ?? null,
+        dbHost: item?.dbHost ?? null,
+        dbPort: item?.dbPort ?? null,
+        dbUser: item?.dbUser ?? null,
+        dbPassword: item?.dbPassword ?? null,
+        dbUrl: item?.dbUrl ?? null,
+        notes: item?.notes ?? null,
+        createdAt: item?.createdAt || null,
+        updatedAt: item?.updatedAt || null,
+      }))
+      .filter((tenant: any) => tenant.code && tenant.name)
+      .sort((a: any, b: any) => a.id - b.id);
+  }
+
+  private getNextTenantId(tenants: Array<{ id: number }>) {
+    const max = tenants.reduce((currentMax, tenant) => Math.max(currentMax, Number(tenant.id) || 0), 0);
+    return max + 1;
+  }
+
+  private async getOrCreateConfig() {
+    const current = await this.getConfigSnapshot();
+    if (current) return current;
+
+    const initial = {
+      ...this.DEFAULT_CONFIG,
+      lastUpdated: new Date().toISOString(),
+      updatedBy: 'system:init',
+    };
+
+    await this.writeFileConfig(initial);
+    await this.saveDbConfig(initial);
+    return initial;
+  }
+
+  private async getConfigSnapshot() {
+    const [fileConfig, dbConfig] = await Promise.all([this.readFileConfig(), this.readDbConfig()]);
+    return fileConfig || dbConfig || null;
+  }
+
+  private async persistTenants(config: Record<string, any>, tenants: any[], userId: number) {
+    const updatedConfig = {
+      ...config,
+      tenants,
+      lastUpdated: new Date().toISOString(),
+      updatedBy: `user:${userId}`,
+    };
+
+    await this.writeFileConfig(updatedConfig);
+    await this.saveDbConfig(updatedConfig);
+    await this.logTenantActivity(userId, 'tenant.updated_registry', {
+      totalTenants: tenants.length,
+    });
+  }
+
+  private async logTenantActivity(userId: number, action: string, details?: any) {
+    try {
+      await this.prisma.activityLog.create({
+        data: {
+          userId,
+          action,
+          entityType: 'Tenant',
+          entityId: 'config',
+          details: details ? JSON.stringify(details) : null,
+        },
+      });
+    } catch (error) {
+      console.error('Failed to log tenant activity:', error);
     }
   }
 
@@ -227,14 +435,14 @@ export class SystemConfigService {
     return Number.isNaN(parsed) ? 0 : parsed;
   }
 
-  private async ensureItUser(userId: number) {
+  private async ensureDevUser(userId: number) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
       throw new NotFoundException('Usuário não encontrado');
     }
 
-    if (user.role !== UserRole.IT) {
-      throw new ForbiddenException('Apenas IT pode alterar a configuração do sistema');
+    if (user.role !== UserRole.DEV) {
+      throw new ForbiddenException('Apenas DEV pode alterar a configuração do sistema');
     }
   }
 }

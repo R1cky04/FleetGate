@@ -14,11 +14,12 @@ datasource db {
 // ===== ENUMS =====
 
 enum UserRole {
+  DEV         // Owner/dev global account (system maintenance)
   CLIENT      // Apenas ficha, sem login
   FLEET       // Gere veículos
   STAFF       // Contratos, devoluções, reservas + permissões FLEET
   ADMIN       // Gerente de estação, move staff, dá permissões
-  IT          // Super admin, pode tudo
+  IT          // Admin técnico da rent-a-car (não manutenção global)
 }
 
 enum UserStatus {
@@ -126,10 +127,57 @@ enum LockStatus {
   EXPIRED
 }
 
+enum TenantDbMode {
+  SHARED
+  DEDICATED
+}
+
+model Tenant {
+  id            Int              @id @default(autoincrement())
+  code          String           @unique
+  name          String
+  dbMode        TenantDbMode     @default(SHARED)
+  dbName        String?
+  dbHost        String?
+  dbPort        String?
+  dbUser        String?
+  dbPassword    String?
+  dbUrl         String?
+  isActive      Boolean          @default(true)
+  notes         String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  users         User[]
+  clientProfiles ClientProfile[]
+  staffProfiles StaffProfile[]
+  userPermissions UserPermission[]
+  stations      Station[]
+  departments   Department[]
+  vehicleGroups VehicleGroup[]
+  vehicles      Vehicle[]
+  reservations  Reservation[]
+  contracts     Contract[]
+  payments      Payment[]
+  maintenances  Maintenance[]
+  repairs       VehicleRepair[]
+  transfers     VehicleTransfer[]
+  additionalDrivers AdditionalDriver[]
+  damageTypes   DamageType[]
+  notifications Notification[]
+  activityLogs  ActivityLog[]
+  recordLocks   RecordLock[]
+  systemConfigs SystemConfig[]
+
+  @@index([isActive])
+  @@index([dbMode])
+}
+
 // ===== USERS & AUTH =====
 
 model User {
   id                Int               @id @default(autoincrement())
+  tenantId          Int?
   userCode          String            @unique
   email             String?           @unique
   password          String?
@@ -143,7 +191,6 @@ model User {
   phone             String
   alternativePhone  String?
   cpf               String?           @unique
-  nif               String?           @unique
   dateOfBirth       DateTime?
   
   // Endereço
@@ -152,18 +199,6 @@ model User {
   postalCode        String?
   country           String            @default("Portugal")
   
-  // Documentos (para clientes)
-  licenseNumber     String?           @unique
-  licenseExpiry     DateTime?
-  licenseIssueDate  DateTime?
-  licenseCountry    String?
-  idCardNumber      String?           @unique
-  idCardExpiry      DateTime?
-  
-  // Profissional (para staff)
-  employeeNumber    String?           @unique
-  hireDate          DateTime?
-  departmentId      String?
   stationId         Int?
   
   // Configurações
@@ -173,21 +208,6 @@ model User {
   acceptedTerms     Boolean           @default(false)
   acceptedMarketing Boolean           @default(false)
   
-  // Cliente rating e blacklist
-  isBlacklisted     Boolean           @default(false)
-  blacklistReason   String?
-  blacklistedAt     DateTime?
-  blacklistedBy     Int?
-  clientRating      Float?            // 0-5 estrelas
-  totalRentals      Int               @default(0)
-
-  // Tipo de cliente (configuravel via ficheiro)
-  customerType      String?           // Code vindo da configuracao
-  companyName       String?
-  companyTaxId      String?
-  brokerName        String?
-  brokerReference   String?
-  
   // Timestamps
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
@@ -195,8 +215,10 @@ model User {
   createdBy         Int?
   
   // Relações
+  tenant            Tenant?           @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   station           Station?          @relation(fields: [stationId], references: [id])
-  department        Department?       @relation(fields: [departmentId], references: [id])
+  clientProfile     ClientProfile?
+  staffProfile      StaffProfile?
   permissions       UserPermission[]
   reservations      Reservation[]
   contracts         Contract[]
@@ -215,13 +237,65 @@ model User {
   
   @@index([email])
   @@index([cpf])
-  @@index([nif])
+  @@index([tenantId])
   @@index([stationId])
   @@index([role, status])
 }
 
+model ClientProfile {
+  tenantId          Int?
+  userId            Int      @id
+  nif               String?  @unique
+  licenseNumber     String?  @unique
+  licenseExpiry     DateTime?
+  licenseIssueDate  DateTime?
+  licenseCountry    String?
+  idCardNumber      String?  @unique
+  idCardExpiry      DateTime?
+  customerType      String?
+  companyName       String?
+  companyTaxId      String?
+  brokerName        String?
+  brokerReference   String?
+  isBlacklisted     Boolean  @default(false)
+  blacklistReason   String?
+  blacklistedAt     DateTime?
+  blacklistedBy     Int?
+  clientRating      Float?
+  totalRentals      Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  tenant            Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([nif])
+}
+
+model StaffProfile {
+  tenantId          Int?
+  userId            Int      @id
+  employeeNumber    String   @unique
+  hireDate          DateTime?
+  departmentId      String?
+  stationId         Int
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  tenant            Tenant?     @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  station           Station     @relation(fields: [stationId], references: [id])
+  department        Department? @relation(fields: [departmentId], references: [id])
+
+  @@index([tenantId])
+  @@index([stationId])
+  @@index([departmentId])
+}
+
 model UserPermission {
   id          String   @id @default(uuid())
+  tenantId     Int?
   userId      Int
   permission  String   // e.g., "vehicle.upgrade", "station.manage", "staff.move"
   grantedBy   Int
@@ -229,8 +303,10 @@ model UserPermission {
   expiresAt   DateTime?
   isActive    Boolean  @default(true)
   
+  tenant      Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
+  @@index([tenantId])
   @@index([userId])
   @@index([permission])
 }
@@ -239,6 +315,7 @@ model UserPermission {
 
 model Station {
   id              Int         @id @default(autoincrement())
+  tenantId        Int?
   name            String
   email           String?
   phone           String?
@@ -264,7 +341,9 @@ model Station {
   updatedAt       DateTime    @updatedAt
   
   // Relações
+  tenant          Tenant?     @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   users           User[]
+  staffProfiles   StaffProfile[]
   vehicles        Vehicle[]
   reservationsPickup   Reservation[] @relation("PickupStation")
   reservationsReturn   Reservation[] @relation("ReturnStation")
@@ -276,24 +355,30 @@ model Station {
   repairsClosed        VehicleRepair[] @relation("RepairClosedAt")
   recordLocks      RecordLock[]
   
+  @@index([tenantId])
   @@index([isActive])
 }
 
 model Department {
   id          String   @id @default(uuid())
+  tenantId    Int?
   name        String   @unique
   description String?
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   
-  users       User[]
+  tenant      Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  staffProfiles StaffProfile[]
+
+  @@index([tenantId])
 }
 
 // ===== VEHICLES =====
 
 model VehicleGroup {
   id              String    @id @default(uuid())
+  tenantId        Int?
   code            String    @unique
   name            String
   description     String?
@@ -330,14 +415,17 @@ model VehicleGroup {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   
+  tenant          Tenant?   @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   vehicles        Vehicle[]
   
+  @@index([tenantId])
   @@index([code])
   @@index([category])
 }
 
 model Vehicle {
   id              Int             @id @default(autoincrement())
+  tenantId        Int?
   groupId         String
   stationId       Int
   
@@ -365,12 +453,16 @@ model Vehicle {
   // Configurações
   notes           String?
   images          String?         // JSON array
+  isStolen        Boolean         @default(false)
+  isSold          Boolean         @default(false)
+  isBlocked       Boolean         @default(false)
   isActive        Boolean         @default(true)
   
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
   
   // Relações
+  tenant          Tenant?         @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   group           VehicleGroup    @relation(fields: [groupId], references: [id])
   station         Station         @relation(fields: [stationId], references: [id])
   reservations    Reservation[]
@@ -379,16 +471,21 @@ model Vehicle {
   repairs         VehicleRepair[]
   transfers       VehicleTransfer[]
   
+  @@index([tenantId])
   @@index([licensePlate])
   @@index([groupId])
   @@index([stationId])
   @@index([status])
+  @@index([isStolen])
+  @@index([isSold])
+  @@index([isBlocked])
 }
 
 // ===== RESERVATIONS & CONTRACTS =====
 
 model Reservation {
   id                Int                 @id @default(autoincrement())
+  tenantId          Int?
   reservationNumber String              @unique
   
   // Cliente e veículo
@@ -445,6 +542,7 @@ model Reservation {
   lockExpiresAt     DateTime?           // Quando o lock expira (timeout)
   
   // Relações
+  tenant            Tenant?              @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   client            User                @relation(fields: [clientId], references: [id])
   vehicle           Vehicle?            @relation(fields: [vehicleId], references: [id])
   pickupStation     Station             @relation("PickupStation", fields: [pickupStationId], references: [id])
@@ -452,6 +550,7 @@ model Reservation {
   createdBy         User                @relation("CreatedBy", fields: [createdById], references: [id])
   contract          Contract?
   
+  @@index([tenantId])
   @@index([reservationNumber])
   @@index([clientId])
   @@index([vehicleId])
@@ -461,6 +560,7 @@ model Reservation {
 
 model Contract {
   id                Int             @id @default(autoincrement())
+  tenantId          Int?
   contractNumber    String          @unique
   reservationId     Int?            @unique
   
@@ -571,6 +671,7 @@ model Contract {
   lockExpiresAt     DateTime?       // Quando o lock expira (timeout)
   
   // Relações
+  tenant            Tenant?          @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   reservation       Reservation?    @relation(fields: [reservationId], references: [id])
   client            User            @relation(fields: [clientId], references: [id])
   vehicle           Vehicle         @relation(fields: [vehicleId], references: [id])
@@ -581,6 +682,7 @@ model Contract {
   payments          Payment[]
   additionalDrivers AdditionalDriver[]
   
+  @@index([tenantId])
   @@index([contractNumber])
   @@index([clientId])
   @@index([vehicleId])
@@ -592,6 +694,7 @@ model Contract {
 
 model Payment {
   id              String        @id @default(uuid())
+  tenantId        Int?
   contractId      Int
   clientId        Int
   
@@ -612,9 +715,11 @@ model Payment {
   updatedAt       DateTime      @updatedAt
   
   // Relações
+  tenant          Tenant?       @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   contract        Contract      @relation(fields: [contractId], references: [id], onDelete: Cascade)
   client          User          @relation(fields: [clientId], references: [id])
   
+  @@index([tenantId])
   @@index([contractId])
   @@index([clientId])
   @@index([status])
@@ -624,6 +729,7 @@ model Payment {
 
 model Maintenance {
   id              String              @id @default(uuid())
+  tenantId        Int?
   vehicleId       Int
   
   type            MaintenanceType
@@ -651,8 +757,10 @@ model Maintenance {
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
   
+  tenant          Tenant?             @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   vehicle         Vehicle             @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
   
+  @@index([tenantId])
   @@index([vehicleId])
   @@index([status])
   @@index([scheduledDate])
@@ -662,6 +770,7 @@ model Maintenance {
 
 model VehicleRepair {
   id              String              @id @default(uuid())
+  tenantId        Int?
   repairNumber    String              @unique
   vehicleId       Int
   
@@ -706,12 +815,14 @@ model VehicleRepair {
   updatedAt       DateTime            @updatedAt
   
   // Relações
+  tenant          Tenant?             @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   vehicle         Vehicle             @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
   fromStation     Station             @relation("RepairOpenedAt", fields: [fromStationId], references: [id])
   closedAtStation Station?            @relation("RepairClosedAt", fields: [closedAtStationId], references: [id])
   openedBy        User                @relation("RepairOpenedBy", fields: [openedById], references: [id])
   closedBy        User?               @relation("RepairClosedBy", fields: [closedById], references: [id])
   
+  @@index([tenantId])
   @@index([vehicleId])
   @@index([status])
   @@index([openedAt])
@@ -724,6 +835,7 @@ model VehicleRepair {
 
 model VehicleTransfer {
   id                String                 @id @default(uuid())
+  tenantId          Int?
   transferNumber    String                 @unique
   vehicleId         Int
   
@@ -763,12 +875,14 @@ model VehicleTransfer {
   cancellationReason String?
   
   // Relações
+  tenant            Tenant?                @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   vehicle           Vehicle                @relation(fields: [vehicleId], references: [id])
   fromStation       Station                @relation("TransferFrom", fields: [fromStationId], references: [id])
   toStation         Station                @relation("TransferTo", fields: [toStationId], references: [id])
   driver            User                   @relation("TransferDriver", fields: [driverId], references: [id])
   createdBy         User                   @relation("TransferCreatedBy", fields: [createdById], references: [id])
   
+  @@index([tenantId])
   @@index([transferNumber])
   @@index([vehicleId])
   @@index([status])
@@ -779,6 +893,7 @@ model VehicleTransfer {
 
 model AdditionalDriver {
   id              String    @id @default(uuid())
+  tenantId        Int?
   contractId      Int
   driverId        Int?      // Se for cliente existente
   
@@ -813,9 +928,11 @@ model AdditionalDriver {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   
+  tenant          Tenant?   @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   contract        Contract  @relation(fields: [contractId], references: [id], onDelete: Cascade)
   driver          User?     @relation(fields: [driverId], references: [id])
   
+  @@index([tenantId])
   @@index([contractId])
   @@index([driverId])
   @@index([licenseNumber])
@@ -825,6 +942,7 @@ model AdditionalDriver {
 
 model DamageType {
   id              String    @id @default(uuid())
+  tenantId        Int?
   code            String    @unique
   name            String
   description     String?
@@ -840,6 +958,9 @@ model DamageType {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   
+  tenant          Tenant?   @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
   @@index([code])
   @@index([category])
   @@index([severity])
@@ -849,6 +970,7 @@ model DamageType {
 
 model Notification {
   id              String              @id @default(uuid())
+  tenantId        Int?
   userId          Int
   type            NotificationType
   status          NotificationStatus  @default(UNREAD)
@@ -867,8 +989,10 @@ model Notification {
   readAt          DateTime?
   createdAt       DateTime            @default(now())
   
+  tenant          Tenant?             @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   
+  @@index([tenantId])
   @@index([userId])
   @@index([status])
   @@index([createdAt])
@@ -878,6 +1002,7 @@ model Notification {
 
 model ActivityLog {
   id          String   @id @default(uuid())
+  tenantId     Int?
   userId      Int
   action      String   // e.g., "user.created", "contract.completed"
   entityType  String   // User, Contract, Vehicle, etc.
@@ -887,8 +1012,10 @@ model ActivityLog {
   userAgent   String?
   createdAt   DateTime @default(now())
   
+  tenant      Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
+  @@index([tenantId])
   @@index([userId])
   @@index([entityType, entityId])
   @@index([createdAt])
@@ -898,6 +1025,7 @@ model ActivityLog {
 
 model RecordLock {
   id              String    @id @default(uuid())
+  tenantId        Int?
   entityType      String    // "Contract", "Reservation", "Vehicle"
   entityId        String    // ID do registo
   lockedBy        Int       // User ID que tem o lock
@@ -917,9 +1045,11 @@ model RecordLock {
   updatedAt       DateTime  @updatedAt
   
   // Relações
+  tenant          Tenant?   @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   user            User      @relation(fields: [lockedBy], references: [id], onDelete: Cascade)
   station         Station   @relation(fields: [stationId], references: [id], onDelete: Cascade)
   
+  @@index([tenantId])
   @@unique([entityType, entityId, stationId]) // Apenas um lock ativo por registo/estação
   @@index([entityType, entityId])
   @@index([lockedBy])
@@ -931,9 +1061,14 @@ model RecordLock {
 
 model SystemConfig {
   id          String   @id @default(uuid())
+  tenantId    Int?
   version     String?
   updatedBy   String?
   configJson  String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  tenant      Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
 }
