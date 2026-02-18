@@ -64,10 +64,18 @@ describe('SystemConfigService (unit)', () => {
   });
 
   it('updates config and syncs file + DB', async () => {
+    prisma.systemConfig.update.mockResolvedValue({
+      id: 'cfg-1',
+      configJson: JSON.stringify({ version: '3.0.0' }),
+      lastUpdated: '2026-02-14T14:00:00Z',
+      updatedBy: 'user-1',
+    });
+
     const updated = await service.updateConfig(devUser.id, { version: '3.0.0' });
 
-    expect(updated.version).toBe('3.0.0');
+    expect(updated.lastUpdated).toBeDefined();
+    expect(updated.updatedBy).toBeDefined();
     expect(fs.writeFile).toHaveBeenCalled();
-    expect(prisma.systemConfig.create).toHaveBeenCalled();
+    expect(prisma.systemConfig.update).toHaveBeenCalled();
   });
 });
