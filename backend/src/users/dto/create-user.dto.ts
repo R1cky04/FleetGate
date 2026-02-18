@@ -1,6 +1,6 @@
 import { IsEmail, IsEnum, IsOptional, IsString, IsBoolean, IsDateString, MinLength, Matches, IsUUID, IsInt } from 'class-validator';
 import { Transform } from 'class-transformer';
-import { UserRole, UserStatus } from '../enums/user-role.enum';
+import { UserRole } from '../enums/user-role.enum';
 
 export class CreateUserDto {
   @IsString()
@@ -106,6 +106,11 @@ export class CreateUserDto {
   @IsOptional()
   @Transform(({ value }) => (value === '' || value === null || value === undefined ? undefined : Number(value)))
   stationId?: number;
+
+  @IsInt()
+  @IsOptional()
+  @Transform(({ value }) => (value === '' || value === null || value === undefined ? undefined : Number(value)))
+  tenantId?: number;
 
   // Configurações
   @IsBoolean()

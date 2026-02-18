@@ -1,6 +1,12 @@
-import { IsBoolean, IsEmail, IsLatitude, IsLongitude, IsOptional, IsString, MinLength } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { IsBoolean, IsEmail, IsInt, IsLatitude, IsLongitude, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class CreateStationDto {
+  @IsInt()
+  @IsOptional()
+  @Transform(({ value }) => (value === '' || value === null || value === undefined ? undefined : Number(value)))
+  tenantId?: number;
+
   @IsString()
   @MinLength(3)
   name: string;

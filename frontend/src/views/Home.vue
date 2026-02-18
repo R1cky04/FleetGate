@@ -17,7 +17,10 @@
         <button class="module-card rent-a-car" @click="openModule('rentacar')">
         </button>
 
-        <button class="module-card system-maintenance" @click="openModule('maintenance')">
+        <button class="module-card system-management" @click="openModule('system-management')">
+        </button>
+
+        <button class="module-card financial-reports" @click="openModule('financial-reports')">
         </button>
 
         <button class="module-card language" @click="openModule('language')">
@@ -27,6 +30,9 @@
         </button>
 
         <button class="module-card logout" @click="handleExit">
+        </button>
+
+        <button class="module-card system-maintenance" @click="openModule('maintenance')">
         </button>
       </div>
     </div>
@@ -51,6 +57,7 @@
       <div class="clock">{{ currentDate }} {{ currentTime }}</div>
       <span class="user-info">User: {{ userName }}</span>
       <span class="user-role">Role: {{ userRole }}</span>
+      <span class="tenant-info">Tenant: {{ tenantName }}</span>
     </div>
   </div>
 </template>
@@ -64,6 +71,7 @@ const router = useRouter()
 const authStore = useAuthStore()
 const userName = ref('Guest')
 const userRole = ref('USER')
+const tenantName = ref('N/A')
 const currentTime = ref('')
 const currentDate = ref('')
 const showAccessModal = ref(false)
@@ -77,6 +85,7 @@ onMounted(() => {
     const currentUser = (authStore.user as any)?.value ?? authStore.user
     userName.value = currentUser?.userCode || currentUser?.name || currentUser?.email || 'User'
     userRole.value = currentUser?.role || 'USER'
+    tenantName.value = currentUser?.tenantName || currentUser?.tenant?.name || currentUser?.companyName || currentUser?.companyCode || 'N/A'
   }
 
   // Update clock every second
@@ -239,7 +248,7 @@ const closeModal = () => {
 
 .modules-grid {
   display: grid;
-  grid-template-columns: repeat(3, 140px);
+  grid-template-columns: repeat(4, 140px);
   grid-template-rows: repeat(2, 140px);
   gap: 16px;
   align-items: center;
@@ -310,6 +319,22 @@ const closeModal = () => {
   position: relative;
 }
 
+.module-card.system-management {
+  background-image: url('/system-management.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  position: relative;
+}
+
+.module-card.financial-reports {
+  background-image: url('/financial-reports.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  position: relative;
+}
+
 .module-card.language {
   background-image: url('/language.png');
   background-size: cover;
@@ -372,6 +397,13 @@ const closeModal = () => {
   font-weight: 600;
 }
 
+.tenant-info {
+  font-size: 14px;
+  color: #999;
+  user-select: none;
+  font-weight: 600;
+}
+
 .clock {
   font-size: 14px;
   color: #999;
@@ -427,6 +459,8 @@ const closeModal = () => {
 .module-card:nth-child(4) { animation-delay: 0.06s; }
 .module-card:nth-child(5) { animation-delay: 0.08s; }
 .module-card:nth-child(6) { animation-delay: 0.1s; }
+.module-card:nth-child(7) { animation-delay: 0.12s; }
+.module-card:nth-child(8) { animation-delay: 0.14s; }
 
 /* MODAL STYLES */
 .modal-overlay {

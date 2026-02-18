@@ -226,7 +226,7 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="tenant in filteredTenants" :key="tenant.id">
+                  <tr v-for="tenant in filteredTenants.slice(0, 6)" :key="tenant.id">
                     <td>#{{ tenant.id }}</td>
                     <td>{{ tenant.code }}</td>
                     <td>{{ tenant.name }}</td>
@@ -296,214 +296,70 @@
             </div>
 
             <div v-if="showAddUserForm" class="modal-overlay" @click="closeAddUserForm">
-              <div class="modal-card user-form-modal" @click.stop>
+              <div class="modal-card modal-compact" @click.stop>
                 <h4>Create User</h4>
                 <div class="form-grid-two">
                   <div class="form-group">
-                    <label>Username</label>
-                    <input v-model="newUser.username" type="text" placeholder="Enter username" />
-                  </div>
-                  <div class="form-group">
-                    <label>Password</label>
-                    <div class="password-field">
-                      <input
-                        v-model="newUser.password"
-                        :type="showPassword ? 'text' : 'password'"
-                        placeholder="Minimum 8 characters"
-                      />
-                      <button type="button" class="btn-toggle-password" @click="showPassword = !showPassword">
-                        {{ showPassword ? 'Hide' : 'Show' }}
-                      </button>
-                    </div>
-                  </div>
-                  <div class="form-group">
-                    <label>Confirm Password</label>
-                    <div class="password-field">
-                      <input
-                        v-model="newUser.confirmPassword"
-                        :type="showConfirmPassword ? 'text' : 'password'"
-                        placeholder="Repeat password"
-                      />
-                      <button type="button" class="btn-toggle-password" @click="showConfirmPassword = !showConfirmPassword">
-                        {{ showConfirmPassword ? 'Hide' : 'Show' }}
-                      </button>
-                    </div>
+                    <label>Tenant</label>
+                    <select v-model="createUserForm.tenantId">
+                      <option value="">Select tenant</option>
+                      <option v-for="tenant in tenants" :key="tenant.id" :value="String(tenant.id)">
+                        {{ tenant.code }} - {{ tenant.name }}
+                      </option>
+                    </select>
                   </div>
                   <div class="form-group">
                     <label>Role</label>
-                    <select v-model="newUser.role">
+                    <select v-model="createUserForm.role">
                       <option value="CLIENT">Client</option>
                       <option value="FLEET">Fleet</option>
                       <option value="STAFF">Staff</option>
-                      <option value="DEV">DEV</option>
-                      <option value="IT">IT</option>
                       <option value="ADMIN">Admin</option>
+                      <option value="IT">IT</option>
+                      <option value="DEV">DEV</option>
                     </select>
                   </div>
-                </div>
-
-                <div class="section-title">Base Information</div>
-                <div class="form-grid-two">
+                  <div class="form-group">
+                    <label>Username</label>
+                    <input v-model="createUserForm.userCode" type="text" placeholder="Username" />
+                  </div>
+                  <div class="form-group">
+                    <label>Email</label>
+                    <input v-model="createUserForm.email" type="email" placeholder="Email (optional)" />
+                  </div>
                   <div class="form-group">
                     <label>First Name</label>
-                    <input v-model="newUser.firstName" type="text" placeholder="Enter first name" />
+                    <input v-model="createUserForm.firstName" type="text" placeholder="First name" />
                   </div>
                   <div class="form-group">
                     <label>Last Name</label>
-                    <input v-model="newUser.lastName" type="text" placeholder="Enter last name" />
+                    <input v-model="createUserForm.lastName" type="text" placeholder="Last name" />
                   </div>
                   <div class="form-group">
                     <label>Phone</label>
                     <div class="phone-field">
                       <span class="phone-plus">+</span>
-                      <input
-                        v-model="newUser.phoneCountryCode"
-                        class="phone-code-input"
-                        type="text"
-                        placeholder="351"
-                      />
-                      <input
-                        v-model="newUser.phone"
-                        class="phone-number-input"
-                        type="text"
-                        placeholder="Phone number"
-                      />
+                      <input v-model="createUserForm.phoneCountryCode" class="phone-code-input" type="text" placeholder="351" />
+                      <input v-model="createUserForm.phone" class="phone-number-input" type="text" placeholder="Phone number" />
                     </div>
                   </div>
                   <div class="form-group">
-                    <label>Alternative Phone</label>
-                    <input v-model="newUser.alternativePhone" type="text" placeholder="Optional" />
+                    <label>Password</label>
+                    <input v-model="createUserForm.password" type="password" placeholder="Min 8 chars" />
                   </div>
                   <div class="form-group">
-                    <label>Email</label>
-                    <input v-model="newUser.email" type="email" placeholder="Optional" />
+                    <label>Confirm Password</label>
+                    <input v-model="createUserForm.confirmPassword" type="password" placeholder="Repeat password" />
                   </div>
                   <div class="form-group">
-                    <label>Date of Birth</label>
-                    <input v-model="newUser.dateOfBirth" type="date" />
-                  </div>
-                </div>
-
-                <div class="section-title">Address</div>
-                <div class="form-grid-two">
-                  <div class="form-group">
-                    <label>Address</label>
-                    <input v-model="newUser.address" type="text" placeholder="Street and number" />
-                  </div>
-                  <div class="form-group">
-                    <label>City</label>
-                    <input v-model="newUser.city" type="text" placeholder="City" />
-                  </div>
-                  <div class="form-group">
-                    <label>Postal Code</label>
-                    <input v-model="newUser.postalCode" type="text" placeholder="Postal code" />
-                  </div>
-                  <div class="form-group">
-                    <label>Country</label>
-                    <input
-                      v-model="newUser.country"
-                      list="country-options"
-                      type="text"
-                      placeholder="Type to filter country"
-                    />
-                  </div>
-                </div>
-
-                <div class="section-title">Client Dossier</div>
-                <div class="form-grid-two">
-                  <div class="form-group">
-                    <label>NIF</label>
-                    <input v-model="newUser.nif" type="text" placeholder="Optional" />
-                  </div>
-                  <div class="form-group">
-                    <label>Nationality</label>
-                    <div class="autocomplete-wrapper">
-                      <input
-                        v-model="newUser.nationality"
-                        type="text"
-                        placeholder="Type to filter nationality"
-                        @focus="showNationalityDropdown = true"
-                        @input="showNationalityDropdown = true"
-                        @blur="closeNationalityDropdown"
-                      />
-                      <div v-if="showNationalityDropdown" class="autocomplete-list">
-                        <button
-                          v-for="nationality in filteredNationalities"
-                          :key="nationality"
-                          type="button"
-                          class="autocomplete-item"
-                          @mousedown.prevent="selectNationality(nationality)"
-                        >
-                          {{ nationality }}
-                        </button>
-                        <div v-if="filteredNationalities.length === 0" class="autocomplete-empty">No nationality found</div>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="form-group">
-                    <label>Driving License Number</label>
-                    <input v-model="newUser.licenseNumber" type="text" placeholder="License number" />
-                  </div>
-                  <div class="form-group">
-                    <label>License Country</label>
-                    <input
-                      v-model="newUser.licenseCountry"
-                      list="country-options"
-                      type="text"
-                      placeholder="Type to filter country"
-                    />
-                  </div>
-                  <div class="form-group">
-                    <label>License Issue Date</label>
-                    <input v-model="newUser.licenseIssueDate" type="date" />
-                  </div>
-                  <div class="form-group">
-                    <label>License Expiry</label>
-                    <input v-model="newUser.licenseExpiry" type="date" />
-                  </div>
-                  <div class="form-group">
-                    <label>Identification Document</label>
-                    <select v-model="newUser.idDocumentType">
-                      <option value="CC">Citizen Card (CC)</option>
-                      <option value="PASSPORT">Passport</option>
+                    <label>Station (required for STAFF/ADMIN/FLEET)</label>
+                    <select v-model="createUserForm.stationId">
+                      <option value="">Select station</option>
+                      <option v-for="station in createUserStations" :key="station.id" :value="String(station.id)">
+                        {{ station.name }} (#{{ station.id }})
+                      </option>
                     </select>
                   </div>
-                  <div class="form-group">
-                    <label>{{ newUser.idDocumentType === 'PASSPORT' ? 'Passport Number' : 'CC Number' }}</label>
-                    <input
-                      v-model="newUser.idCardNumber"
-                      type="text"
-                      :placeholder="newUser.idDocumentType === 'PASSPORT' ? 'Passport number' : 'Citizen card number'"
-                    />
-                  </div>
-                  <div class="form-group">
-                    <label>{{ newUser.idDocumentType === 'PASSPORT' ? 'Passport Expiry' : 'CC Expiry' }}</label>
-                    <input v-model="newUser.idCardExpiry" type="date" />
-                  </div>
-                </div>
-
-                <template v-if="newUser.role !== 'CLIENT'">
-                  <div class="section-title">Staff Additional Information</div>
-                  <div class="form-grid-two">
-                    <div class="form-group">
-                      <label>Employee Number</label>
-                      <input type="text" value="Auto-generated by system" disabled />
-                    </div>
-                    <div class="form-group">
-                      <label>Hire Date</label>
-                      <input v-model="newUser.hireDate" type="date" />
-                    </div>
-                  </div>
-                </template>
-
-                <div class="form-group">
-                  <label>Station (Optional)</label>
-                  <select v-model="newUser.stationId">
-                    <option value="">Select station</option>
-                    <option v-for="station in stations" :key="station.id" :value="station.id">
-                      {{ station.name }} (#{{ station.id }})
-                    </option>
-                  </select>
                 </div>
 
                 <div v-if="userFormError" class="form-error">{{ userFormError }}</div>
@@ -513,10 +369,6 @@
                   <button class="btn-submit" @click="addUser">Create User</button>
                   <button class="btn-cancel" @click="closeAddUserForm">Cancel</button>
                 </div>
-
-                <datalist id="country-options">
-                  <option v-for="country in COUNTRY_OPTIONS" :key="country" :value="country" />
-                </datalist>
               </div>
             </div>
 
@@ -763,16 +615,8 @@
                     <th>Role</th>
                     <th>Status</th>
                     <th>Last Login</th>
-                    <th>
-                      <button class="sort-header-btn" @click="toggleUserTenantSort('id')">
-                        Tenant ID {{ userTenantSortBy === 'id' ? (userTenantSortDir === 'asc' ? '↑' : '↓') : '' }}
-                      </button>
-                    </th>
-                    <th>
-                      <button class="sort-header-btn" @click="toggleUserTenantSort('code')">
-                        Tenant Code {{ userTenantSortBy === 'code' ? (userTenantSortDir === 'asc' ? '↑' : '↓') : '' }}
-                      </button>
-                    </th>
+                    <th>Tenant ID</th>
+                    <th>Tenant Code</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -862,7 +706,7 @@
           <h3>Station Management</h3>
           <div class="stations-section">
             <div class="stations-actions">
-              <button class="btn-add-station" @click="toggleAddStationForm">+ Create Station</button>
+              <button class="btn-add-user" @click="openAddStationForm">+ Create Station</button>
               <button class="btn-action btn-refresh" @click="loadStations">↻ Refresh</button>
             </div>
 
@@ -886,32 +730,43 @@
                 <h4>Create Station</h4>
                 <div class="form-grid-two">
                   <div class="form-group">
-                    <label>Station Name</label>
-                    <input v-model="newStation.name" type="text" placeholder="Enter station name" />
+                    <label>Tenant</label>
+                    <select v-model="createStationForm.tenantId">
+                      <option value="">Select tenant</option>
+                      <option v-for="tenant in tenants" :key="tenant.id" :value="String(tenant.id)">
+                        {{ tenant.code }} - {{ tenant.name }}
+                      </option>
+                    </select>
                   </div>
                   <div class="form-group">
-                    <label>Location</label>
-                    <input v-model="newStation.city" type="text" placeholder="Enter city (optional)" />
+                    <label>Station Name</label>
+                    <input v-model="createStationForm.name" type="text" placeholder="Station name" />
                   </div>
                   <div class="form-group">
                     <label>Email</label>
-                    <input v-model="newStation.email" type="email" placeholder="Enter station email (optional)" />
+                    <input v-model="createStationForm.email" type="email" placeholder="Optional" />
                   </div>
                   <div class="form-group">
                     <label>Phone</label>
-                    <input v-model="newStation.phone" type="text" placeholder="Enter station phone (optional)" />
+                    <input v-model="createStationForm.phone" type="text" placeholder="Optional" />
+                  </div>
+                  <div class="form-group">
+                    <label>City</label>
+                    <input v-model="createStationForm.city" type="text" placeholder="City" />
                   </div>
                   <div class="form-group">
                     <label>Address</label>
-                    <input v-model="newStation.address" type="text" placeholder="Enter station address (optional)" />
+                    <input v-model="createStationForm.address" type="text" placeholder="Address" />
                   </div>
                   <div class="form-group">
                     <label>Postal Code</label>
-                    <input v-model="newStation.postalCode" type="text" placeholder="Enter postal code (optional)" />
+                    <input v-model="createStationForm.postalCode" type="text" placeholder="Postal code" />
                   </div>
                 </div>
+
                 <div v-if="stationFormError" class="form-error">{{ stationFormError }}</div>
                 <div v-if="stationFormSuccess" class="form-success">{{ stationFormSuccess }}</div>
+
                 <div class="form-actions">
                   <button class="btn-submit" @click="addStation">Create Station</button>
                   <button class="btn-cancel" @click="closeAddStationForm">Cancel</button>
@@ -964,16 +819,8 @@
                     <th>City</th>
                     <th>Contacts</th>
                     <th>Usage</th>
-                    <th>
-                      <button class="sort-header-btn" @click="toggleStationTenantSort('id')">
-                        Tenant ID {{ stationTenantSortBy === 'id' ? (stationTenantSortDir === 'asc' ? '↑' : '↓') : '' }}
-                      </button>
-                    </th>
-                    <th>
-                      <button class="sort-header-btn" @click="toggleStationTenantSort('code')">
-                        Tenant Code {{ stationTenantSortBy === 'code' ? (stationTenantSortDir === 'asc' ? '↑' : '↓') : '' }}
-                      </button>
-                    </th>
+                    <th>Tenant ID</th>
+                    <th>Tenant Code</th>
                     <th>Status</th>
                     <th>Actions</th>
                   </tr>
@@ -1068,16 +915,6 @@
                   <option value="permission.granted">Permission Granted</option>
                   <option value="permission.revoked">Permission Revoked</option>
                 </select>
-                <select v-model="logSortBy">
-                  <option value="timestamp">Sort: Timestamp</option>
-                  <option value="action">Sort: Action</option>
-                  <option value="tenantId">Sort: Tenant ID</option>
-                  <option value="tenantCode">Sort: Tenant Code</option>
-                </select>
-                <select v-model="logSortDir">
-                  <option value="desc">Desc</option>
-                  <option value="asc">Asc</option>
-                </select>
               </div>
               <div class="logs-buttons">
                 <button class="btn-action" @click="loadActivityLogs">Apply Filters</button>
@@ -1088,7 +925,7 @@
               </div>
             </div>
             <div class="logs-list" v-if="filteredLogs.length > 0">
-              <div v-for="log in filteredLogs" :key="log.id" class="log-entry">
+              <div v-for="log in filteredLogs.slice(0, 6)" :key="log.id" class="log-entry">
                 <span class="log-time">{{ new Date(log.timestamp).toLocaleString() }}</span>
                 <span class="log-action">{{ log.action }}</span>
                 <span class="log-subject">{{ formatLogSubject(log) }}</span>
@@ -1304,41 +1141,21 @@ const userLastLoginFilter = ref('')
 const userStationFilter = ref('')
 const userTenantIdFilter = ref('')
 const userTenantCodeFilter = ref('')
-const createEmptyNewUser = () => ({
-  username: '',
-  password: '',
-  confirmPassword: '',
+const createEmptyUserForm = () => ({
+  tenantId: '',
+  userCode: '',
+  email: '',
   firstName: '',
   lastName: '',
   phoneCountryCode: '351',
   phone: '',
-  alternativePhone: '',
-  email: '',
-  nif: '',
-  nationality: '',
-  dateOfBirth: '',
-  address: '',
-  city: '',
-  postalCode: '',
-  country: 'Portugal',
-  licenseNumber: '',
-  licenseExpiry: '',
-  licenseIssueDate: '',
-  licenseCountry: '',
-  idDocumentType: 'CC',
-  idCardNumber: '',
-  idCardExpiry: '',
-  employeeNumber: '',
-  hireDate: '',
-  role: 'CLIENT',
+  role: 'STAFF',
+  password: '',
+  confirmPassword: '',
   stationId: '',
 })
-
-const newUser = ref(createEmptyNewUser())
+const createUserForm = ref(createEmptyUserForm())
 const showAddUserForm = ref(false)
-const showNationalityDropdown = ref(false)
-const showPassword = ref(false)
-const showConfirmPassword = ref(false)
 const userFormError = ref('')
 const userFormSuccess = ref('')
 const showEditUserForm = ref(false)
@@ -1401,7 +1218,8 @@ const stationCityFilter = ref('')
 const stationTenantIdFilter = ref('')
 const stationTenantCodeFilter = ref('')
 const stationStatusFilter = ref('')
-const newStation = ref({
+const createEmptyStationForm = () => ({
+  tenantId: '',
   name: '',
   email: '',
   phone: '',
@@ -1409,9 +1227,10 @@ const newStation = ref({
   city: '',
   postalCode: '',
 })
+const createStationForm = ref(createEmptyStationForm())
+const showAddStationForm = ref(false)
 const stationFormError = ref('')
 const stationFormSuccess = ref('')
-const showAddStationForm = ref(false)
 const showEditStationForm = ref(false)
 const editingStationId = ref<number | null>(null)
 const editStationForm = ref({
@@ -1433,8 +1252,6 @@ const logFilter = ref('')
 const logLevel = ref('')
 const logTenantIdFilter = ref('')
 const logTenantCodeFilter = ref('')
-const logSortBy = ref<'timestamp' | 'action' | 'tenantId' | 'tenantCode'>('timestamp')
-const logSortDir = ref<'asc' | 'desc'>('desc')
 
 // System Info
 const systemInfo = ref({
@@ -1476,7 +1293,7 @@ const filteredLogs = computed(() => {
   const tenantIdFilter = logTenantIdFilter.value.trim().toLowerCase()
   const tenantCodeFilter = logTenantCodeFilter.value.trim().toLowerCase()
 
-  const filtered = logs.value.filter(log => {
+  return logs.value.filter(log => {
     const details = parseLogDetails(log.details)
     const detailsText = details ? JSON.stringify(details).toLowerCase() : ''
     const searchTerm = logFilter.value.toLowerCase()
@@ -1490,38 +1307,6 @@ const filteredLogs = computed(() => {
     const matchesTenantCode = !tenantCodeFilter || tenantCodeText.includes(tenantCodeFilter)
     return matchesFilter && matchesLevel && matchesTenantId && matchesTenantCode
   })
-
-  const sorted = [...filtered]
-  sorted.sort((left, right) => {
-    let leftValue: string | number = ''
-    let rightValue: string | number = ''
-
-    if (logSortBy.value === 'timestamp') {
-      leftValue = new Date(left.timestamp).getTime()
-      rightValue = new Date(right.timestamp).getTime()
-    } else if (logSortBy.value === 'action') {
-      leftValue = String(left.action ?? '').toLowerCase()
-      rightValue = String(right.action ?? '').toLowerCase()
-    } else if (logSortBy.value === 'tenantId') {
-      leftValue = Number(left.tenantId ?? -1)
-      rightValue = Number(right.tenantId ?? -1)
-    } else {
-      leftValue = String(left.tenantCode ?? '').toLowerCase()
-      rightValue = String(right.tenantCode ?? '').toLowerCase()
-    }
-
-    if (leftValue < rightValue) {
-      return logSortDir.value === 'asc' ? -1 : 1
-    }
-
-    if (leftValue > rightValue) {
-      return logSortDir.value === 'asc' ? 1 : -1
-    }
-
-    return 0
-  })
-
-  return sorted
 })
 
 const filteredTenants = computed(() => {
@@ -1592,54 +1377,22 @@ const filteredStaffUsers = computed(() => {
   return filteredUsers.value.filter(user => user.role !== 'CLIENT')
 })
 
-const userTenantSortBy = ref<'id' | 'code'>('id')
-const userTenantSortDir = ref<'asc' | 'desc'>('asc')
-
-const sortedStaffUsers = computed(() => {
-  const sorted = [...filteredStaffUsers.value]
-
-  sorted.sort((left, right) => {
-    const leftValue = userTenantSortBy.value === 'id'
-      ? Number(left.tenantId ?? -1)
-      : String(left.tenantCode ?? '').toLowerCase()
-    const rightValue = userTenantSortBy.value === 'id'
-      ? Number(right.tenantId ?? -1)
-      : String(right.tenantCode ?? '').toLowerCase()
-
-    if (leftValue < rightValue) {
-      return userTenantSortDir.value === 'asc' ? -1 : 1
-    }
-
-    if (leftValue > rightValue) {
-      return userTenantSortDir.value === 'asc' ? 1 : -1
-    }
-
-    return 0
-  })
-
-  return sorted
+const createUserStations = computed(() => {
+  const tenantId = Number(createUserForm.value.tenantId)
+  if (!tenantId) return []
+  return stations.value.filter((station) => Number(station.tenantId) === tenantId)
 })
 
-const toggleUserTenantSort = (field: 'id' | 'code') => {
-  if (userTenantSortBy.value === field) {
-    userTenantSortDir.value = userTenantSortDir.value === 'asc' ? 'desc' : 'asc'
-    return
-  }
-
-  userTenantSortBy.value = field
-  userTenantSortDir.value = 'asc'
-}
-
 const staffPage = ref(1)
-const staffPageSize = 8
+const staffPageSize = 6
 
 const staffTotalPages = computed(() => {
-  return Math.max(1, Math.ceil(sortedStaffUsers.value.length / staffPageSize))
+  return Math.max(1, Math.ceil(filteredStaffUsers.value.length / staffPageSize))
 })
 
 const paginatedStaffUsers = computed(() => {
   const start = (staffPage.value - 1) * staffPageSize
-  return sortedStaffUsers.value.slice(start, start + staffPageSize)
+  return filteredStaffUsers.value.slice(start, start + staffPageSize)
 })
 
 const staffPageNumbers = computed(() => {
@@ -1667,7 +1420,7 @@ const staffPageNumbers = computed(() => {
   return Array.from({ length: end - start + 1 }, (_, index) => start + index)
 })
 
-watch(sortedStaffUsers, () => {
+watch(filteredStaffUsers, () => {
   if (staffPage.value > staffTotalPages.value) {
     staffPage.value = staffTotalPages.value
   }
@@ -1705,54 +1458,16 @@ const filteredStations = computed(() => {
   })
 })
 
-const stationTenantSortBy = ref<'id' | 'code'>('id')
-const stationTenantSortDir = ref<'asc' | 'desc'>('asc')
-
-const sortedStations = computed(() => {
-  const sorted = [...filteredStations.value]
-
-  sorted.sort((left, right) => {
-    const leftValue = stationTenantSortBy.value === 'id'
-      ? Number(left.tenantId ?? -1)
-      : String(left.tenant?.code ?? '').toLowerCase()
-    const rightValue = stationTenantSortBy.value === 'id'
-      ? Number(right.tenantId ?? -1)
-      : String(right.tenant?.code ?? '').toLowerCase()
-
-    if (leftValue < rightValue) {
-      return stationTenantSortDir.value === 'asc' ? -1 : 1
-    }
-
-    if (leftValue > rightValue) {
-      return stationTenantSortDir.value === 'asc' ? 1 : -1
-    }
-
-    return 0
-  })
-
-  return sorted
-})
-
-const toggleStationTenantSort = (field: 'id' | 'code') => {
-  if (stationTenantSortBy.value === field) {
-    stationTenantSortDir.value = stationTenantSortDir.value === 'asc' ? 'desc' : 'asc'
-    return
-  }
-
-  stationTenantSortBy.value = field
-  stationTenantSortDir.value = 'asc'
-}
-
 const stationPage = ref(1)
-const stationPageSize = 8
+const stationPageSize = 6
 
 const stationTotalPages = computed(() => {
-  return Math.max(1, Math.ceil(sortedStations.value.length / stationPageSize))
+  return Math.max(1, Math.ceil(filteredStations.value.length / stationPageSize))
 })
 
 const paginatedStations = computed(() => {
   const start = (stationPage.value - 1) * stationPageSize
-  return sortedStations.value.slice(start, start + stationPageSize)
+  return filteredStations.value.slice(start, start + stationPageSize)
 })
 
 const stationPageNumbers = computed(() => {
@@ -1780,7 +1495,7 @@ const stationPageNumbers = computed(() => {
   return Array.from({ length: end - start + 1 }, (_, index) => start + index)
 })
 
-watch(sortedStations, () => {
+watch(filteredStations, () => {
   if (stationPage.value > stationTotalPages.value) {
     stationPage.value = stationTotalPages.value
   }
@@ -1789,17 +1504,6 @@ watch(sortedStations, () => {
     stationPage.value = 1
   }
 }, { immediate: true })
-
-const filteredNationalities = computed(() => {
-  const query = newUser.value.nationality.trim().toLowerCase()
-  if (!query) {
-    return NATIONALITY_OPTIONS
-  }
-
-  return NATIONALITY_OPTIONS.filter((nationality) =>
-    nationality.toLowerCase().includes(query),
-  )
-})
 
 const filteredEditNationalities = computed(() => {
   const query = editUserForm.value.nationality.trim().toLowerCase()
@@ -1854,20 +1558,9 @@ const formatDateForInput = (value?: string | null) => {
   return parsed.toISOString().split('T')[0]
 }
 
-const selectNationality = (nationality: string) => {
-  newUser.value.nationality = nationality
-  showNationalityDropdown.value = false
-}
-
 const selectEditNationality = (nationality: string) => {
   editUserForm.value.nationality = nationality
   showEditNationalityDropdown.value = false
-}
-
-const closeNationalityDropdown = () => {
-  setTimeout(() => {
-    showNationalityDropdown.value = false
-  }, 120)
 }
 
 const closeEditNationalityDropdown = () => {
@@ -2154,13 +1847,90 @@ const deleteTenant = (tenant: any) => {
   )
 }
 
-const resetNewUserForm = () => {
-  newUser.value = createEmptyNewUser()
-  showNationalityDropdown.value = false
-  showPassword.value = false
-  showConfirmPassword.value = false
+const resetCreateUserForm = () => {
+  createUserForm.value = createEmptyUserForm()
   userFormError.value = ''
   userFormSuccess.value = ''
+}
+
+const openAddUserForm = () => {
+  resetCreateUserForm()
+  showAddUserForm.value = true
+}
+
+const closeAddUserForm = () => {
+  showAddUserForm.value = false
+  resetCreateUserForm()
+}
+
+const addUser = async () => {
+  userFormError.value = ''
+  userFormSuccess.value = ''
+
+  const tenantId = Number(createUserForm.value.tenantId)
+  const phoneCountryCodeDigits = (createUserForm.value.phoneCountryCode || '').replace(/\D/g, '')
+  const phoneDigits = (createUserForm.value.phone || '').replace(/\D/g, '')
+  const composedPhone = `${phoneCountryCodeDigits}${phoneDigits}`
+  const role = createUserForm.value.role
+
+  if (!tenantId) {
+    userFormError.value = 'Tenant is required.'
+    return
+  }
+
+  if (!createUserForm.value.userCode || !createUserForm.value.firstName || !createUserForm.value.lastName || !phoneDigits) {
+    userFormError.value = 'Please fill username, first name, last name and phone.'
+    return
+  }
+
+  if (!phoneCountryCodeDigits || !/^\d{9,15}$/.test(composedPhone)) {
+    userFormError.value = 'Phone with country code must have 9 to 15 digits.'
+    return
+  }
+
+  if (role !== 'CLIENT') {
+    if (!createUserForm.value.password || createUserForm.value.password.length < 8) {
+      userFormError.value = 'Password must have at least 8 characters.'
+      return
+    }
+
+    if (createUserForm.value.password !== createUserForm.value.confirmPassword) {
+      userFormError.value = 'Password and confirm password must match.'
+      return
+    }
+  }
+
+  if (['STAFF', 'ADMIN', 'FLEET'].includes(role) && !createUserForm.value.stationId) {
+    userFormError.value = `${role} requires a station.`
+    return
+  }
+
+  try {
+    isLoading.value = true
+    await axios.post(`${APIUrl}/users`, {
+      tenantId,
+      userCode: createUserForm.value.userCode.toUpperCase().trim(),
+      email: createUserForm.value.email || undefined,
+      firstName: createUserForm.value.firstName,
+      lastName: createUserForm.value.lastName,
+      phone: composedPhone,
+      role,
+      password: createUserForm.value.password || undefined,
+      stationId: createUserForm.value.stationId ? Number(createUserForm.value.stationId) : undefined,
+    }, {
+      headers: authHeaders(),
+    })
+
+    userFormSuccess.value = 'User created successfully!'
+    closeAddUserForm()
+    await loadUsers()
+    await loadSystemInfo()
+  } catch (error: any) {
+    console.error('Error creating user:', error)
+    userFormError.value = getApiErrorMessage(error, 'Failed to create user.')
+  } finally {
+    isLoading.value = false
+  }
 }
 
 const resetEditUserForm = () => {
@@ -2170,127 +1940,6 @@ const resetEditUserForm = () => {
   showEditConfirmPassword.value = false
   editUserFormError.value = ''
   editUserFormSuccess.value = ''
-}
-
-const openAddUserForm = () => {
-  resetNewUserForm()
-  showAddUserForm.value = true
-}
-
-const closeAddUserForm = () => {
-  showAddUserForm.value = false
-  resetNewUserForm()
-}
-
-const createEmptyNewStation = () => ({
-  name: '',
-  email: '',
-  phone: '',
-  address: '',
-  city: '',
-  postalCode: '',
-})
-
-const resetNewStationForm = () => {
-  newStation.value = createEmptyNewStation()
-  stationFormError.value = ''
-  stationFormSuccess.value = ''
-}
-
-const closeAddStationForm = () => {
-  showAddStationForm.value = false
-  resetNewStationForm()
-}
-
-const toggleAddStationForm = () => {
-  if (showAddStationForm.value) {
-    closeAddStationForm()
-    return
-  }
-
-  resetNewStationForm()
-  showAddStationForm.value = true
-}
-
-const addUser = async () => {
-  userFormError.value = ''
-  userFormSuccess.value = ''
-
-  const phoneCountryCodeDigits = (newUser.value.phoneCountryCode || '').replace(/\D/g, '')
-  const phoneDigits = (newUser.value.phone || '').replace(/\D/g, '')
-  const composedPhone = `${phoneCountryCodeDigits}${phoneDigits}`
-
-  if (!newUser.value.username || !newUser.value.firstName || !newUser.value.lastName || !phoneDigits || !newUser.value.role || !newUser.value.password) {
-    userFormError.value = 'Please fill in username, password, name, phone and role.'
-    return
-  }
-
-  if (!phoneCountryCodeDigits) {
-    userFormError.value = 'Country code is required before phone number.'
-    return
-  }
-
-  if (!/^[A-Za-z0-9]+$/.test(newUser.value.username)) {
-    userFormError.value = 'Username must contain only letters and numbers.'
-    return
-  }
-
-  if (newUser.value.password.length < 8) {
-    userFormError.value = 'Password must have at least 8 characters.'
-    return
-  }
-
-  if (newUser.value.password !== newUser.value.confirmPassword) {
-    userFormError.value = 'Password and confirm password must match.'
-    return
-  }
-
-  if (!/^\d{9,15}$/.test(composedPhone)) {
-    userFormError.value = 'Phone with country code must have 9 to 15 digits.'
-    return
-  }
-
-  try {
-    isLoading.value = true
-    const response = await axios.post(`${APIUrl}/users`, {
-      userCode: newUser.value.username.toUpperCase().trim(),
-      firstName: newUser.value.firstName,
-      lastName: newUser.value.lastName,
-      phone: composedPhone,
-      alternativePhone: newUser.value.alternativePhone ? newUser.value.alternativePhone.replace(/\D/g, '') : undefined,
-      email: newUser.value.email || undefined,
-      nif: newUser.value.role === 'CLIENT' ? newUser.value.nif || undefined : undefined,
-      nationality: newUser.value.role === 'CLIENT' ? newUser.value.nationality || undefined : undefined,
-      dateOfBirth: normalizeDateInput(newUser.value.dateOfBirth),
-      address: newUser.value.address || undefined,
-      city: newUser.value.city || undefined,
-      postalCode: newUser.value.postalCode || undefined,
-      country: newUser.value.country || undefined,
-      licenseNumber: newUser.value.role === 'CLIENT' ? newUser.value.licenseNumber || undefined : undefined,
-      licenseExpiry: newUser.value.role === 'CLIENT' ? normalizeDateInput(newUser.value.licenseExpiry) : undefined,
-      licenseIssueDate: newUser.value.role === 'CLIENT' ? normalizeDateInput(newUser.value.licenseIssueDate) : undefined,
-      licenseCountry: newUser.value.role === 'CLIENT' ? newUser.value.licenseCountry || undefined : undefined,
-      idCardNumber: newUser.value.role === 'CLIENT' ? newUser.value.idCardNumber || undefined : undefined,
-      idCardExpiry: newUser.value.role === 'CLIENT' ? normalizeDateInput(newUser.value.idCardExpiry) : undefined,
-      hireDate: newUser.value.role !== 'CLIENT' ? normalizeDateInput(newUser.value.hireDate) : undefined,
-      password: newUser.value.password,
-      role: newUser.value.role,
-      stationId: newUser.value.stationId ? Number(newUser.value.stationId) : undefined,
-    }, {
-      headers: authHeaders()
-    })
-    
-    users.value.push(response.data)
-    resetNewUserForm()
-    userFormSuccess.value = 'User created successfully!'
-    await loadUsers()
-    await loadSystemInfo()
-  } catch (error: any) {
-    console.error('Error creating user:', error)
-    userFormError.value = getApiErrorMessage(error, 'Failed to create user.')
-  } finally {
-    isLoading.value = false
-  }
 }
 
 const editUser = (user: any) => {
@@ -2414,6 +2063,64 @@ const cancelUserEdit = () => {
   showEditUserForm.value = false
   editingUserId.value = null
   resetEditUserForm()
+}
+
+const resetCreateStationForm = () => {
+  createStationForm.value = createEmptyStationForm()
+  stationFormError.value = ''
+  stationFormSuccess.value = ''
+}
+
+const openAddStationForm = () => {
+  resetCreateStationForm()
+  showAddStationForm.value = true
+}
+
+const closeAddStationForm = () => {
+  showAddStationForm.value = false
+  resetCreateStationForm()
+}
+
+const addStation = async () => {
+  stationFormError.value = ''
+  stationFormSuccess.value = ''
+
+  const tenantId = Number(createStationForm.value.tenantId)
+  if (!tenantId) {
+    stationFormError.value = 'Tenant is required.'
+    return
+  }
+
+  if (!createStationForm.value.name?.trim()) {
+    stationFormError.value = 'Station name is required.'
+    return
+  }
+
+  try {
+    isLoading.value = true
+    await axios.post(`${APIUrl}/stations`, {
+      tenantId,
+      name: createStationForm.value.name.trim(),
+      email: createStationForm.value.email?.trim() || undefined,
+      phone: createStationForm.value.phone?.trim() || undefined,
+      address: createStationForm.value.address?.trim() || undefined,
+      city: createStationForm.value.city?.trim() || undefined,
+      postalCode: createStationForm.value.postalCode?.trim() || undefined,
+      isActive: true,
+    }, {
+      headers: authHeaders(),
+    })
+
+    stationFormSuccess.value = 'Station created successfully!'
+    closeAddStationForm()
+    await loadStations()
+    await loadSystemInfo()
+  } catch (error: any) {
+    console.error('Error creating station:', error)
+    stationFormError.value = getApiErrorMessage(error, 'Failed to create station.')
+  } finally {
+    isLoading.value = false
+  }
 }
 
 const showFeedback = (title: string, message: string, type: 'success' | 'error' = 'success') => {
@@ -2583,42 +2290,6 @@ const confirmStatusChange = async () => {
   } catch (error: any) {
     console.error('Error changing staff status:', error)
     showFeedback('Status Update Failed', `Failed to change account status: ${error.response?.data?.message || error.message}`, 'error')
-  } finally {
-    isLoading.value = false
-  }
-}
-
-const addStation = async () => {
-  stationFormError.value = ''
-  stationFormSuccess.value = ''
-
-  if (!newStation.value.name?.trim()) {
-    stationFormError.value = 'Station name is required.'
-    return
-  }
-
-  try {
-    isLoading.value = true
-    const response = await axios.post(`${APIUrl}/stations`, {
-      name: newStation.value.name.trim(),
-      email: newStation.value.email?.trim() || undefined,
-      phone: newStation.value.phone?.trim() || undefined,
-      address: newStation.value.address?.trim() || undefined,
-      city: newStation.value.city?.trim() || undefined,
-      postalCode: newStation.value.postalCode?.trim() || undefined,
-      isActive: true,
-    }, {
-      headers: authHeaders()
-    })
-    
-    stations.value.push(response.data)
-    resetNewStationForm()
-    stationFormSuccess.value = 'Station created successfully!'
-    await loadStations()
-    await loadSystemInfo()
-  } catch (error: any) {
-    console.error('Error creating station:', error)
-    stationFormError.value = error.response?.data?.message || error.message || 'Failed to create station.'
   } finally {
     isLoading.value = false
   }
@@ -2845,8 +2516,6 @@ const clearLogFilters = async () => {
   logLevel.value = ''
   logTenantIdFilter.value = ''
   logTenantCodeFilter.value = ''
-  logSortBy.value = 'timestamp'
-  logSortDir.value = 'desc'
   await loadActivityLogs()
 }
 

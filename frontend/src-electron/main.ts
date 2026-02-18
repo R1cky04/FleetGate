@@ -82,7 +82,7 @@ function createModulesWindow() {
   console.log('Creating modules window...')
 
   modulesWindow = new BrowserWindow({
-    width: 600,
+    width: 700,
     height: 400,
     webPreferences: {
       preload: preloadPath,

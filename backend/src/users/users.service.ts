@@ -57,7 +57,7 @@ export class UsersService {
       // Criar fullName
       const fullName = `${firstName} ${lastName}`;
       const normalizedUserCode = userCode.toUpperCase();
-      const autoEmployeeNumber = [UserRole.STAFF, UserRole.ADMIN, UserRole.FLEET, UserRole.IT].includes(createUserDto.role)
+      const autoEmployeeNumber = [UserRole.STAFF, UserRole.ADMIN, UserRole.FLEET].includes(createUserDto.role)
         ? await this.getNextEmployeeNumber()
         : undefined;
 
@@ -69,6 +69,7 @@ export class UsersService {
 
       const user = await this.prisma.user.create({
         data: {
+          tenantId: dto.tenantId,
           email: dto.email,
           role: dto.role,
           status: UserStatus.ACTIVE,
@@ -96,6 +97,7 @@ export class UsersService {
             ? {
                 clientProfile: {
                   create: {
+                    tenantId: dto.tenantId,
                     nif: dto.nif,
                     licenseNumber: dto.licenseNumber,
                     licenseExpiry,
@@ -118,10 +120,11 @@ export class UsersService {
                 },
               }
             : {}),
-          ...([UserRole.STAFF, UserRole.ADMIN, UserRole.FLEET, UserRole.IT].includes(createUserDto.role)
+          ...([UserRole.STAFF, UserRole.ADMIN, UserRole.FLEET].includes(createUserDto.role)
             ? {
                 staffProfile: {
                   create: {
+                    tenantId: dto.tenantId,
                     employeeNumber: dto.employeeNumber || autoEmployeeNumber || String(Date.now()),
                     hireDate,
                     departmentId: dto.departmentId,
@@ -353,7 +356,7 @@ export class UsersService {
       await this.prisma.clientProfile.deleteMany({ where: { userId: id } });
     }
 
-    if (targetRole === UserRole.CLIENT || targetRole === UserRole.DEV) {
+    if (targetRole === UserRole.CLIENT || targetRole === UserRole.DEV || targetRole === UserRole.IT) {
       await this.prisma.staffProfile.deleteMany({ where: { userId: id } });
     } else {
       const resolvedStationId = dto.stationId ?? user.stationId ?? existingUser.staffProfile?.stationId;
